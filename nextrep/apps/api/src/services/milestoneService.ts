@@ -40,7 +40,7 @@ async function alreadyAwarded(userId: string, type: MilestoneType, value: number
   if (!row) return false;
   // Look for existing milestone with same type + threshold
   const existing = await db.execute(
-    sql`SELECT id FROM milestones WHERE user_id = ${userId} AND milestone_type = ${type} AND (metadata->>'threshold')::int = ${value}`,
+    sql`SELECT id FROM milestones WHERE user_id = ${userId} AND type = ${type} AND (metadata->>'threshold')::int = ${value}`,
   );
   return existing.rows.length > 0;
 }

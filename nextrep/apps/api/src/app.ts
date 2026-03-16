@@ -52,7 +52,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // ── Global error handler ─────────────────────────────────────────────────────
   app.setErrorHandler((err: any, _req, reply) => {
     app.log.error(err);
-    const statusCode = err.statusCode ?? 500;
+    const statusCode = err.statusCode ?? err.status ?? 500;
     return reply.status(statusCode).send({
       success: false,
       error: {

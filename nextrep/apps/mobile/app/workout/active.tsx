@@ -39,7 +39,7 @@ export default function ActiveWorkoutScreen() {
 
   const { data: allExercises } = useQuery({
     queryKey: ['exercises'],
-    queryFn:  api.exercises.list,
+    queryFn:  () => api.exercises.list(),
   });
 
   const finishMutation = useMutation({
@@ -58,12 +58,14 @@ export default function ActiveWorkoutScreen() {
   });
 
   function handleFinish() {
-    const result = finishWorkout();
-    if (!result) return;
-    if (result.session.sets.length === 0) {
+    // Validate that there are completed sets BEFORE clearing state
+    const hasCompletedSets = exercises.some((block) => block.sets.some((s) => s.isCompleted));
+    if (!hasCompletedSets) {
       Alert.alert('No sets recorded', 'Log at least one completed set before finishing.');
       return;
     }
+    const result = finishWorkout();
+    if (!result) return;
     finishMutation.mutate(result.session);
   }
 

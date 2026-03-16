@@ -17,8 +17,8 @@ export default function BodyLogScreen() {
     waistCm:      '',
     chestCm:      '',
     hipsCm:       '',
-    leftBicepCm:  '',
-    rightBicepCm: '',
+    leftArmCm:    '',
+    rightArmCm:   '',
     notes:        '',
   });
 
@@ -39,8 +39,8 @@ export default function BodyLogScreen() {
     if (form.waistCm)      payload.waistCm      = parseFloat(form.waistCm);
     if (form.chestCm)      payload.chestCm      = parseFloat(form.chestCm);
     if (form.hipsCm)       payload.hipsCm       = parseFloat(form.hipsCm);
-    if (form.leftBicepCm)  payload.leftBicepCm  = parseFloat(form.leftBicepCm);
-    if (form.rightBicepCm) payload.rightBicepCm = parseFloat(form.rightBicepCm);
+    if (form.leftArmCm)    payload.leftArmCm    = parseFloat(form.leftArmCm);
+    if (form.rightArmCm)   payload.rightArmCm   = parseFloat(form.rightArmCm);
     if (form.notes)        payload.notes        = form.notes;
     mutate(payload);
   }
@@ -74,8 +74,8 @@ export default function BodyLogScreen() {
       {field('waistCm',      'Waist',        'cm')}
       {field('chestCm',      'Chest',        'cm')}
       {field('hipsCm',       'Hips',         'cm')}
-      {field('leftBicepCm',  'Left Bicep',   'cm')}
-      {field('rightBicepCm', 'Right Bicep',  'cm')}
+      {field('leftArmCm',    'Left Arm',    'cm')}
+      {field('rightArmCm',   'Right Arm',   'cm')}
 
       <View style={styles.fieldRow}>
         <Text style={styles.fieldLabel}>Notes</Text>

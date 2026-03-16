@@ -10,7 +10,7 @@ export async function getDashboardOverview(userId: string) {
       (SELECT COALESCE(SUM(total_volume_kg),0) FROM workout_sessions WHERE user_id = ${userId} AND is_deleted = false) AS total_volume,
       (SELECT COUNT(*) FROM personal_records WHERE user_id = ${userId}) AS total_prs,
       (SELECT COALESCE(SUM(total_sets),0) FROM workout_sessions WHERE user_id = ${userId} AND is_deleted = false) AS total_sets,
-      (SELECT AVG(duration_minutes) FROM workout_sessions WHERE user_id = ${userId} AND total_sets > 0 AND duration_minutes > 0) AS avg_duration,
+      (SELECT AVG(duration_seconds) / 60.0 FROM workout_sessions WHERE user_id = ${userId} AND is_deleted = false AND total_sets > 0 AND duration_seconds > 0) AS avg_duration,
       (SELECT COUNT(*) FROM workout_sessions WHERE user_id = ${userId} AND is_deleted = false AND started_at >= NOW() - INTERVAL '30 days') AS workouts_this_month
   `);
   const r = result.rows[0] as any;
@@ -36,7 +36,7 @@ export async function getStrengthCurve(userId: string, exerciseId: string, days 
     WHERE s.user_id = ${userId}
       AND ws.exercise_id = ${exerciseId}
       AND s.is_deleted = false
-      AND s.started_at >= NOW() - INTERVAL '${sql.raw(String(days))} days'
+      AND s.started_at >= NOW() - MAKE_INTERVAL(days => ${Math.max(1, Math.min(days, 3650))})
     GROUP BY DATE(s.started_at)
     ORDER BY date
   `);
@@ -56,7 +56,7 @@ export async function getVolumeTrend(userId: string, weeks = 12) {
     FROM workout_sessions
     WHERE user_id = ${userId}
       AND is_deleted = false
-      AND started_at >= NOW() - INTERVAL '${sql.raw(String(weeks))} weeks'
+      AND started_at >= NOW() - MAKE_INTERVAL(weeks => ${Math.max(1, Math.min(weeks, 520))})
     GROUP BY week
     ORDER BY week
   `);
@@ -89,7 +89,7 @@ export async function getFrequencyHeatmap(userId: string) {
 export async function getMuscleVolume(userId: string, weeks = 8) {
   const result = await db.execute(sql`
     SELECT
-      e.muscle_group,
+      e.primary_muscle AS muscle_group,
       DATE_TRUNC('week', s.started_at) AS week,
       SUM(ws.weight_kg * ws.reps) AS tonnage
     FROM workout_sets ws
@@ -97,9 +97,9 @@ export async function getMuscleVolume(userId: string, weeks = 8) {
     JOIN exercises e ON ws.exercise_id = e.id
     WHERE s.user_id = ${userId}
       AND s.is_deleted = false
-      AND s.started_at >= NOW() - INTERVAL '${sql.raw(String(weeks))} weeks'
-    GROUP BY e.muscle_group, week
-    ORDER BY week, e.muscle_group
+      AND s.started_at >= NOW() - MAKE_INTERVAL(weeks => ${Math.max(1, Math.min(weeks, 520))})
+    GROUP BY e.primary_muscle, week
+    ORDER BY week, e.primary_muscle
   `);
   return result.rows.map((r: any) => ({
     muscleGroup: r.muscle_group,
@@ -112,15 +112,15 @@ export async function getMuscleVolume(userId: string, weeks = 8) {
 export async function getMuscleBalance(userId: string, days = 30) {
   const result = await db.execute(sql`
     SELECT
-      e.muscle_group,
+      e.primary_muscle AS muscle_group,
       SUM(ws.weight_kg * ws.reps) AS volume
     FROM workout_sets ws
     JOIN workout_sessions s ON ws.session_id = s.id
     JOIN exercises e ON ws.exercise_id = e.id
     WHERE s.user_id = ${userId}
       AND s.is_deleted = false
-      AND s.started_at >= NOW() - INTERVAL '${sql.raw(String(days))} days'
-    GROUP BY e.muscle_group
+      AND s.started_at >= NOW() - MAKE_INTERVAL(days => ${Math.max(1, Math.min(days, 3650))})
+    GROUP BY e.primary_muscle
     ORDER BY volume DESC
   `);
   return result.rows.map((r: any) => ({
@@ -134,12 +134,12 @@ export async function getDurationTrend(userId: string, weeks = 12) {
   const result = await db.execute(sql`
     SELECT
       DATE(started_at) AS date,
-      duration_minutes
+      ROUND(duration_seconds / 60.0) AS duration_minutes
     FROM workout_sessions
     WHERE user_id = ${userId}
       AND is_deleted = false
-      AND duration_minutes > 0
-      AND started_at >= NOW() - INTERVAL '${sql.raw(String(weeks))} weeks'
+      AND duration_seconds > 0
+      AND started_at >= NOW() - MAKE_INTERVAL(weeks => ${Math.max(1, Math.min(weeks, 520))})
     ORDER BY date
   `);
   return result.rows.map((r: any) => ({
@@ -154,7 +154,7 @@ export async function getRecordsBoard(userId: string) {
     SELECT
       pr.exercise_id,
       e.name AS exercise_name,
-      e.muscle_group,
+      e.primary_muscle AS muscle_group,
       pr.record_type,
       pr.value,
       pr.achieved_at

@@ -39,7 +39,7 @@ export default function WorkoutDetailScreen() {
       </Text>
 
       <View style={styles.meta}>
-        <MetaStat icon="⏱" value={`${Math.round(workout.durationMinutes ?? 0)}m`} label="Duration" />
+        <MetaStat icon="⏱" value={`${Math.round((workout.durationSeconds ?? 0) / 60)}m`} label="Duration" />
         <MetaStat icon="📦" value={workout.totalSets} label="Sets" />
         <MetaStat icon="⚖️" value={`${Math.round(workout.totalVolumeKg ?? 0)} kg`} label="Volume" />
         {workout.rating && <MetaStat icon="⭐" value={`${workout.rating}/5`} label="Rating" />}

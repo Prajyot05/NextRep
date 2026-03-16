@@ -29,7 +29,7 @@ export async function workoutRoutes(app: FastifyInstance) {
   app.get('/workouts/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
     const session = await getSessionById(req.userId!, id);
-    if (!session) return sendError(reply, 404, 'NOT_FOUND', 'Workout not found');
+    if (!session) return sendError(reply, 404, 'Workout not found', 'NOT_FOUND');
     return sendSuccess(reply, session);
   });
 

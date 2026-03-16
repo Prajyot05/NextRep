@@ -45,7 +45,7 @@ export default function HistoryScreen() {
                 </Text>
               </View>
               <View style={styles.cardMeta}>
-                <Text style={styles.metaItem}>⏱ {Math.round(item.durationMinutes ?? 0)}m</Text>
+                <Text style={styles.metaItem}>⏱ {Math.round((item.durationSeconds ?? 0) / 60)}m</Text>
                 <Text style={styles.metaItem}>📦 {item.totalSets} sets</Text>
                 <Text style={styles.metaItem}>⚖️ {Math.round(item.totalVolumeKg ?? 0)} kg</Text>
               </View>

@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { eq, ilike, and } from 'drizzle-orm';
+import { eq, ilike, and, or, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import { exercises } from '../db/schema';
 import { CreateExerciseSchema } from '@nextrep/shared';
@@ -9,7 +9,10 @@ export async function exerciseRoutes(app: FastifyInstance) {
   // GET /exercises?muscle=CHEST&q=bench
   app.get('/exercises', async (req, reply) => {
     const { muscle, q, category } = req.query as Record<string, string>;
-    const conditions: any[] = [eq(exercises.isCustom, false)];
+    // Return global exercises OR user's own custom exercises
+    const conditions: any[] = [
+      or(eq(exercises.isCustom, false), eq(exercises.userId, req.userId!)),
+    ];
 
     if (muscle) conditions.push(eq(exercises.primaryMuscle, muscle as any));
     if (category) conditions.push(eq(exercises.category, category as any));

@@ -6,8 +6,10 @@ import { useActiveWorkoutStore } from '../../src/store/workoutStore';
 import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../src/theme';
 
 export default function StartScreen() {
-  const isActive    = useActiveWorkoutStore((s) => s.isActive);
-  const startWorkout = useActiveWorkoutStore((s) => s.startWorkout);
+  const isActive      = useActiveWorkoutStore((s) => s.isActive);
+  const startWorkout  = useActiveWorkoutStore((s) => s.startWorkout);
+  const addExercise   = useActiveWorkoutStore((s) => s.addExercise);
+  const addSet        = useActiveWorkoutStore((s) => s.addSet);
 
   const { data: templates } = useQuery({
     queryKey: ['templates'],
@@ -29,6 +31,19 @@ export default function StartScreen() {
       return;
     }
     startWorkout(template.name, template.id);
+    // Pre-populate exercises from the template
+    if (template.exercises?.length) {
+      for (const te of template.exercises) {
+        const ex = te.exercise;
+        if (!ex) continue;
+        addExercise(ex.id, ex.name);
+        // Add the target number of sets
+        const numSets = te.targetSets ?? te.defaultSets ?? 3;
+        for (let i = 0; i < numSets; i++) {
+          addSet(ex.id);
+        }
+      }
+    }
     router.push('/workout/active');
   }
 

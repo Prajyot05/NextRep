@@ -90,13 +90,18 @@ export async function getSessionById(userId: string, sessionId: string) {
 
 export async function listSessions(userId: string, page = 1, limit = 20) {
   const offset = (page - 1) * limit;
-  const rows = await db.query.workoutSessions.findMany({
-    where: and(eq(workoutSessions.userId, userId), eq(workoutSessions.isDeleted, false)),
-    orderBy: [desc(workoutSessions.startedAt)],
-    limit,
-    offset,
-  });
-  return rows;
+  const [rows, countResult] = await Promise.all([
+    db.query.workoutSessions.findMany({
+      where: and(eq(workoutSessions.userId, userId), eq(workoutSessions.isDeleted, false)),
+      orderBy: [desc(workoutSessions.startedAt)],
+      limit,
+      offset,
+    }),
+    db.select({ total: sql<number>`count(*)` })
+      .from(workoutSessions)
+      .where(and(eq(workoutSessions.userId, userId), eq(workoutSessions.isDeleted, false))),
+  ]);
+  return { data: rows, total: Number(countResult[0]?.total ?? 0), page, limit };
 }
 
 export async function deleteSession(userId: string, sessionId: string) {

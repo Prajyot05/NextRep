@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { userStreaks, streakHistory } from '../db/schema';
 
@@ -22,7 +22,7 @@ export async function updateStreak(userId: string, workoutDate: Date) {
 
   // Already counted this day
   const existing = await db.query.streakHistory.findFirst({
-    where: eq(streakHistory.userId, userId),
+    where: and(eq(streakHistory.userId, userId), eq(streakHistory.date, today)),
   });
 
   // Check if this date is consecutive
