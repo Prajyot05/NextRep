@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, Alert, ActivityIndicator,
+  View, Text, TextInput, StyleSheet, Alert, ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getUserFriendlyErrorMessage } from '../../src/api/client';
 import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../src/theme';
+import { ScreenWrapper, Card, GradientButton, Badge } from '../../src/components/ui';
 
 export default function BodyLogScreen() {
   const queryClient = useQueryClient();
@@ -45,68 +45,139 @@ export default function BodyLogScreen() {
     mutate(payload);
   }
 
-  function field(key: keyof typeof form, label: string, unit?: string) {
+  function field(key: keyof typeof form, label: string, unit?: string, icon?: string) {
     return (
       <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>{label}</Text>
+        <View style={styles.fieldLabelWrap}>
+          {icon && <Text style={styles.fieldIcon}>{icon}</Text>}
+          <Text style={styles.fieldLabel}>{label}</Text>
+        </View>
         <View style={styles.fieldInputWrap}>
           <TextInput
             style={styles.fieldInput}
             placeholder="—"
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={Colors.textDisabled}
             keyboardType="decimal-pad"
             value={form[key]}
             onChangeText={(v) => setForm((f) => ({ ...f, [key]: v }))}
           />
-          {unit && <Text style={styles.fieldUnit}>{unit}</Text>}
+          {unit && <Badge label={unit} color={Colors.textMuted} bgColor={Colors.bgMuted} />}
         </View>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Log Body Measurement</Text>
-      <Text style={styles.date}>{form.date}</Text>
+    <ScreenWrapper edges={['top', 'bottom']}>
+      <Text style={styles.title}>Body Measurement</Text>
+      <Text style={styles.date}>📅 {form.date}</Text>
 
-      {field('weightKg',     'Weight',       'kg')}
-      {field('bodyFatPct',   'Body Fat',     '%')}
-      {field('waistCm',      'Waist',        'cm')}
-      {field('chestCm',      'Chest',        'cm')}
-      {field('hipsCm',       'Hips',         'cm')}
-      {field('leftArmCm',    'Left Arm',    'cm')}
-      {field('rightArmCm',   'Right Arm',   'cm')}
+      <Card style={styles.formCard}>
+        {field('weightKg',   'Weight',   'kg', '⚖️')}
+        {field('bodyFatPct', 'Body Fat', '%',  '📊')}
+        {field('waistCm',    'Waist',    'cm', '📏')}
+        {field('chestCm',    'Chest',    'cm', '💪')}
+        {field('hipsCm',     'Hips',     'cm', '🦵')}
+        {field('leftArmCm',  'Left Arm', 'cm', '💪')}
+        {field('rightArmCm', 'Right Arm','cm', '💪')}
+      </Card>
 
-      <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>Notes</Text>
+      <Card style={styles.notesCard}>
+        <Text style={styles.notesLabel}>Notes</Text>
         <TextInput
-          style={[styles.fieldInput, styles.notesInput]}
+          style={styles.notesInput}
           placeholder="Optional notes…"
-          placeholderTextColor={Colors.textMuted}
+          placeholderTextColor={Colors.textDisabled}
           multiline
           value={form.notes}
           onChangeText={(v) => setForm((f) => ({ ...f, notes: v }))}
         />
-      </View>
+      </Card>
 
-      <TouchableOpacity style={[styles.saveBtn, isPending && { opacity: 0.6 }]} onPress={handleSave} disabled={isPending}>
-        {isPending ? <ActivityIndicator color={Colors.text} /> : <Text style={styles.saveBtnText}>Save Measurement</Text>}
-      </TouchableOpacity>
-    </ScrollView>
+      <GradientButton
+        title="Save Measurement"
+        icon="📏"
+        onPress={handleSave}
+        loading={isPending}
+        disabled={isPending}
+        variant="primary"
+        size="lg"
+        style={{ marginTop: Spacing.lg }}
+      />
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: Colors.bg },
-  content:        { padding: Spacing.lg, paddingBottom: 100 },
-  title:          { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: Colors.text, marginBottom: Spacing.xs },
-  date:           { fontSize: FontSize.sm,  color: Colors.textMuted, marginBottom: Spacing.xl },
-  fieldRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  fieldLabel:     { fontSize: FontSize.sm, color: Colors.text, flex: 1 },
-  fieldInputWrap: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  fieldInput:     { backgroundColor: Colors.bgCard, borderRadius: Radius.sm, padding: Spacing.sm, color: Colors.text, fontSize: FontSize.sm, minWidth: 80, textAlign: 'right' },
-  fieldUnit:      { color: Colors.textMuted, fontSize: FontSize.xs, width: 24 },
-  notesInput:     { minHeight: 80, textAlignVertical: 'top' },
-  saveBtn:        { backgroundColor: Colors.primary, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center', marginTop: Spacing.xl },
-  saveBtnText:    { color: Colors.text, fontWeight: FontWeight.bold, fontSize: FontSize.md },
+  title:         {
+    fontSize:      FontSize.xxl,
+    fontWeight:    FontWeight.extrabold,
+    color:         Colors.text,
+    letterSpacing: -0.5,
+    paddingTop:    Spacing.sm,
+  },
+  date:          {
+    fontSize:     FontSize.sm,
+    color:        Colors.textMuted,
+    marginTop:    Spacing.xs,
+    marginBottom: Spacing.lg,
+  },
+  formCard:      { padding: 0, overflow: 'hidden' },
+  fieldRow:      {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    paddingVertical:   Spacing.md,
+    paddingHorizontal: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderSubtle,
+  },
+  fieldLabelWrap: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           Spacing.sm,
+    flex:          1,
+  },
+  fieldIcon:     { fontSize: 16 },
+  fieldLabel:    {
+    fontSize:   FontSize.sm,
+    color:      Colors.text,
+    fontWeight: FontWeight.medium,
+  },
+  fieldInputWrap: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           Spacing.sm,
+  },
+  fieldInput:    {
+    backgroundColor: Colors.bgMuted,
+    borderRadius:    Radius.sm,
+    paddingVertical:   Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    color:           Colors.text,
+    fontSize:        FontSize.sm,
+    minWidth:        72,
+    textAlign:       'right',
+    borderWidth:     1,
+    borderColor:     Colors.borderSubtle,
+  },
+  notesCard:     { marginTop: Spacing.md },
+  notesLabel:    {
+    fontSize:      FontSize.xs,
+    color:         Colors.textMuted,
+    marginBottom:  Spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  notesInput:    {
+    backgroundColor: Colors.bgMuted,
+    borderRadius:    Radius.sm,
+    padding:         Spacing.md,
+    color:           Colors.text,
+    fontSize:        FontSize.sm,
+    minHeight:       80,
+    textAlignVertical: 'top',
+    borderWidth:     1,
+    borderColor:     Colors.borderSubtle,
+  },
 });

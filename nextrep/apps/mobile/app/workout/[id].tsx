@@ -1,8 +1,10 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../src/api/client';
-import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../src/theme';
+import { Colors, Spacing, Radius, FontSize, FontWeight, Gradients, Shadows } from '../../src/theme';
+import { ScreenWrapper, Card, StatCard, SectionHeader, Badge } from '../../src/components/ui';
 
 export default function WorkoutDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,7 +32,13 @@ export default function WorkoutDetailScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScreenWrapper>
+      {/* Back button */}
+      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+        <Ionicons name="chevron-back" size={20} color={Colors.primary} />
+        <Text style={styles.backText}>Back</Text>
+      </TouchableOpacity>
+
       <Text style={styles.title}>{workout.name}</Text>
       <Text style={styles.date}>
         {new Date(workout.startedAt).toLocaleDateString('en-US', {
@@ -38,22 +46,29 @@ export default function WorkoutDetailScreen() {
         })}
       </Text>
 
-      <View style={styles.meta}>
-        <MetaStat icon="⏱" value={`${Math.round((workout.durationSeconds ?? 0) / 60)}m`} label="Duration" />
-        <MetaStat icon="📦" value={workout.totalSets} label="Sets" />
-        <MetaStat icon="⚖️" value={`${Math.round(workout.totalVolumeKg ?? 0)} kg`} label="Volume" />
-        {workout.rating && <MetaStat icon="⭐" value={`${workout.rating}/5`} label="Rating" />}
+      {/* Meta stats */}
+      <View style={styles.statsRow}>
+        <StatCard icon="⏱" value={`${Math.round((workout.durationSeconds ?? 0) / 60)}m`} label="Duration" gradient={Gradients.primarySoft} />
+        <StatCard icon="📦" value={workout.totalSets} label="Sets" gradient={Gradients.accentSoft} />
+      </View>
+      <View style={styles.statsRow}>
+        <StatCard icon="⚖️" value={`${Math.round(workout.totalVolumeKg ?? 0)} kg`} label="Volume" gradient={Gradients.primarySoft} />
+        {workout.rating && (
+          <StatCard icon="⭐" value={`${workout.rating}/5`} label="Rating" gradient={Gradients.accentSoft} />
+        )}
       </View>
 
       {workout.notes && (
-        <View style={styles.notes}>
+        <Card style={styles.notesCard}>
           <Text style={styles.notesLabel}>Notes</Text>
           <Text style={styles.notesText}>{workout.notes}</Text>
-        </View>
+        </Card>
       )}
 
+      {/* Exercises */}
+      <SectionHeader title="Exercises" />
       {Object.entries(byExercise).map(([exId, { name, sets }]) => (
-        <View key={exId} style={styles.exerciseBlock}>
+        <Card key={exId} style={styles.exerciseBlock} gradientAccent={Gradients.primary}>
           <Text style={styles.exerciseName}>{name}</Text>
           {sets.map((set: any, i: number) => (
             <View key={set.id ?? i} style={styles.setRow}>
@@ -61,46 +76,66 @@ export default function WorkoutDetailScreen() {
               <Text style={styles.setDetails}>
                 {set.weightKg ? `${set.weightKg} kg` : '—'}
                 {set.reps ? ` × ${set.reps}` : ''}
-                {set.type !== 'WORKING' ? ` (${set.type})` : ''}
               </Text>
-              {set.isPr && <Text style={styles.prBadge}>🏆 PR</Text>}
+              {set.type !== 'WORKING' && (
+                <Badge label={set.type} color={Colors.warning} bgColor={Colors.warningMuted} />
+              )}
+              {set.isPr && (
+                <Badge label="🏆 PR" color={Colors.streakGold} bgColor="rgba(255,215,0,0.15)" />
+              )}
             </View>
           ))}
-        </View>
+        </Card>
       ))}
-    </ScrollView>
-  );
-}
-
-function MetaStat({ icon, value, label }: { icon: string; value: string | number; label: string }) {
-  return (
-    <View style={styles.metaStat}>
-      <Text style={styles.metaIcon}>{icon}</Text>
-      <Text style={styles.metaValue}>{value}</Text>
-      <Text style={styles.metaLabel}>{label}</Text>
-    </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container:     { flex: 1, backgroundColor: Colors.bg },
-  content:       { padding: Spacing.lg, paddingBottom: 100 },
-  center:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center:        { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bg },
   errorText:     { color: Colors.error, fontSize: FontSize.md },
-  title:         { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: Colors.text },
-  date:          { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: Spacing.xs, marginBottom: Spacing.lg },
-  meta:          { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.xl },
-  metaStat:      { flex: 1, backgroundColor: Colors.bgCard, borderRadius: Radius.md, padding: Spacing.sm, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
-  metaIcon:      { fontSize: FontSize.lg },
-  metaValue:     { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: Colors.primary, marginTop: 2 },
-  metaLabel:     { fontSize: FontSize.xs, color: Colors.textMuted },
-  notes:         { backgroundColor: Colors.bgCard, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xl, borderWidth: 1, borderColor: Colors.border },
-  notesLabel:    { fontSize: FontSize.sm, color: Colors.textMuted, marginBottom: Spacing.xs },
-  notesText:     { fontSize: FontSize.sm, color: Colors.text },
-  exerciseBlock: { backgroundColor: Colors.bgCard, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border },
-  exerciseName:  { fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: Colors.text, marginBottom: Spacing.sm },
-  setRow:        { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: 4 },
-  setNum:        { width: 20, fontSize: FontSize.sm, color: Colors.textMuted },
+  backBtn:       {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           Spacing.xs,
+    marginBottom:  Spacing.md,
+  },
+  backText:      { color: Colors.primary, fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  title:         {
+    fontSize:      FontSize.xxl,
+    fontWeight:    FontWeight.extrabold,
+    color:         Colors.text,
+    letterSpacing: -0.5,
+  },
+  date:          {
+    fontSize:     FontSize.sm,
+    color:        Colors.textMuted,
+    marginTop:    Spacing.xs,
+    marginBottom: Spacing.lg,
+  },
+  statsRow:      { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.md },
+  notesCard:     { marginBottom: Spacing.lg },
+  notesLabel:    { fontSize: FontSize.xs, color: Colors.textMuted, marginBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 1 },
+  notesText:     { fontSize: FontSize.sm, color: Colors.text, lineHeight: 22 },
+  exerciseBlock: { marginBottom: Spacing.md },
+  exerciseName:  {
+    fontSize:     FontSize.md,
+    fontWeight:   FontWeight.bold,
+    color:        Colors.text,
+    marginBottom: Spacing.sm,
+    paddingTop:   Spacing.xs,
+  },
+  setRow:        {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           Spacing.md,
+    paddingVertical: 5,
+  },
+  setNum:        {
+    width:      24,
+    fontSize:   FontSize.sm,
+    color:      Colors.textMuted,
+    fontWeight: FontWeight.semibold,
+  },
   setDetails:    { flex: 1, fontSize: FontSize.sm, color: Colors.text },
-  prBadge:       { fontSize: FontSize.xs, color: Colors.streakGold },
 });

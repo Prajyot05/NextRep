@@ -1,9 +1,11 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../../src/api/client';
 import { useAuthStore } from '../../src/store/authStore';
-import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../src/theme';
+import { Colors, Spacing, Radius, FontSize, FontWeight, Gradients, Shadows } from '../../src/theme';
+import { ScreenWrapper, StatCard, Card, GradientButton, SectionHeader } from '../../src/components/ui';
 
 export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
@@ -17,91 +19,136 @@ export default function HomeScreen() {
   });
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.greeting}>Hey {user?.displayName ?? 'Athlete'} 👋</Text>
-        <Text style={styles.subGreeting}>Ready to crush it today?</Text>
+    <ScreenWrapper paddingBottom={120}>
+      {/* Hero greeting */}
+      <View style={styles.hero}>
+        <Text style={styles.greeting}>Hey {user?.displayName ?? 'Athlete'}</Text>
+        <Text style={styles.subGreeting}>Ready to crush it today? 💪</Text>
       </View>
 
       {/* Streak card */}
       {streak && (
-        <View style={styles.streakCard}>
-          <Text style={styles.streakEmoji}>🔥</Text>
-          <View>
-            <Text style={styles.streakCount}>{streak.currentStreak} Day Streak</Text>
-            <Text style={styles.streakBest}>Best: {streak.longestStreak} days</Text>
+        <LinearGradient
+          colors={Gradients.accentSoft}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.streakCard, Shadows.md]}
+        >
+          <View style={styles.streakLeft}>
+            <Text style={styles.streakEmoji}>🔥</Text>
+            <View>
+              <Text style={styles.streakCount}>{streak.currentStreak}</Text>
+              <Text style={styles.streakLabel}>Day Streak</Text>
+            </View>
           </View>
-        </View>
+          <View style={styles.streakDivider} />
+          <View style={styles.streakRight}>
+            <Text style={styles.streakBestNum}>{streak.longestStreak}</Text>
+            <Text style={styles.streakBestLabel}>Best</Text>
+          </View>
+        </LinearGradient>
       )}
 
       {/* Quick stats */}
-      {isLoading ? (
-        <ActivityIndicator color={Colors.primary} style={{ marginTop: Spacing.xl }} />
-      ) : overview ? (
-        <View style={styles.statsGrid}>
-          <StatCard label="Workouts" value={overview.totalWorkouts} />
-          <StatCard label="This Month" value={overview.workoutsThisMonth} />
-          <StatCard label="PRs Set" value={overview.totalPrs} />
-          <StatCard label="Avg Duration" value={`${overview.avgDurationMin ?? 0}m`} />
-        </View>
-      ) : null}
+      {!isLoading && overview && (
+        <>
+          <SectionHeader title="Overview" />
+          <View style={styles.statsGrid}>
+            <StatCard label="Workouts" value={overview.totalWorkouts} icon="🏋️" gradient={Gradients.primarySoft} />
+            <StatCard label="This Month" value={overview.workoutsThisMonth} icon="📅" gradient={Gradients.accentSoft} />
+          </View>
+          <View style={styles.statsGrid}>
+            <StatCard label="PRs Set" value={overview.totalPrs} icon="🏆" gradient={Gradients.primarySoft} />
+            <StatCard label="Avg Duration" value={`${overview.avgDurationMin ?? 0}m`} icon="⏱" gradient={Gradients.accentSoft} />
+          </View>
+        </>
+      )}
 
       {/* Start workout CTA */}
-      <TouchableOpacity style={styles.ctaButton} onPress={() => router.push('/(tabs)/start')}>
-        <Text style={styles.ctaText}>+ Start Workout</Text>
-      </TouchableOpacity>
-    </ScrollView>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <View style={styles.statCard}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
+      <View style={{ marginTop: Spacing.xl }}>
+        <GradientButton
+          title="Start Workout"
+          icon="⚡"
+          onPress={() => router.push('/(tabs)/start')}
+          variant="accent"
+          size="lg"
+        />
+      </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: Colors.bg },
-  contentContainer: { padding: Spacing.lg, paddingBottom: 100 },
-  header:          { marginBottom: Spacing.xl },
-  greeting:        { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: Colors.text },
-  subGreeting:     { fontSize: FontSize.md, color: Colors.textMuted, marginTop: Spacing.xs },
-  streakCard:      {
-    flexDirection:    'row',
-    alignItems:       'center',
-    gap:              Spacing.md,
-    backgroundColor:  Colors.bgCard,
-    borderRadius:     Radius.lg,
-    padding:          Spacing.lg,
-    marginBottom:     Spacing.xl,
-    borderWidth:      1,
-    borderColor:      Colors.streak,
+  hero: {
+    marginBottom: Spacing.xl,
+    paddingTop:   Spacing.sm,
   },
-  streakEmoji:     { fontSize: 40 },
-  streakCount:     { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: Colors.text },
-  streakBest:      { fontSize: FontSize.sm, color: Colors.textMuted },
-  statsGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, marginBottom: Spacing.xl },
-  statCard:        {
-    flex:             1,
-    minWidth:         '45%',
-    backgroundColor:  Colors.bgCard,
-    borderRadius:     Radius.md,
-    padding:          Spacing.md,
-    alignItems:       'center',
-    borderWidth:      1,
-    borderColor:      Colors.border,
+  greeting: {
+    fontSize:      FontSize.xxxl,
+    fontWeight:    FontWeight.extrabold,
+    color:         Colors.text,
+    letterSpacing: -0.5,
   },
-  statValue:       { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: Colors.primary },
-  statLabel:       { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: Spacing.xs },
-  ctaButton:       {
-    backgroundColor: Colors.primary,
-    borderRadius:    Radius.lg,
-    padding:         Spacing.lg,
-    alignItems:      'center',
+  subGreeting: {
+    fontSize:   FontSize.md,
+    color:      Colors.textMuted,
+    marginTop:  Spacing.xs,
   },
-  ctaText:         { color: Colors.text, fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  streakCard: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    borderRadius:   Radius.lg,
+    padding:        Spacing.lg,
+    marginBottom:   Spacing.md,
+    borderWidth:    1,
+    borderColor:    'rgba(255, 107, 53, 0.2)',
+  },
+  streakLeft: {
+    flex:           1,
+    flexDirection:  'row',
+    alignItems:     'center',
+    gap:            Spacing.md,
+  },
+  streakEmoji: {
+    fontSize: 36,
+  },
+  streakCount: {
+    fontSize:   FontSize.xxxl,
+    fontWeight: FontWeight.black,
+    color:      Colors.accent,
+    lineHeight: 38,
+  },
+  streakLabel: {
+    fontSize:      FontSize.xs,
+    color:         Colors.textSecondary,
+    fontWeight:    FontWeight.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  streakDivider: {
+    width:           1,
+    height:          40,
+    backgroundColor: Colors.border,
+    marginHorizontal: Spacing.lg,
+  },
+  streakRight: {
+    alignItems: 'center',
+  },
+  streakBestNum: {
+    fontSize:   FontSize.xl,
+    fontWeight: FontWeight.bold,
+    color:      Colors.text,
+  },
+  streakBestLabel: {
+    fontSize:      FontSize.xxs,
+    color:         Colors.textMuted,
+    fontWeight:    FontWeight.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap:           Spacing.md,
+    marginBottom:  Spacing.md,
+  },
 });

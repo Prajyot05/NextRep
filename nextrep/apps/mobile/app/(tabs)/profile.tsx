@@ -1,14 +1,16 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useAuthStore } from '../../src/store/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../src/api/client';
 import { router } from 'expo-router';
-import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../src/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, FontSize, FontWeight, Gradients, Shadows } from '../../src/theme';
+import { ScreenWrapper, Card, GradientButton, SectionHeader, Badge } from '../../src/components/ui';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
-  const { data: streak }      = useQuery({ queryKey: ['streak'],      queryFn: api.streaks.get });
-  const { data: milestones }  = useQuery({ queryKey: ['milestones'],  queryFn: api.milestones.list });
+  const { data: streak }     = useQuery({ queryKey: ['streak'],     queryFn: api.streaks.get });
+  const { data: milestones } = useQuery({ queryKey: ['milestones'], queryFn: api.milestones.list });
 
   async function handleLogout() {
     Alert.alert('Log Out', 'Are you sure?', [
@@ -21,102 +23,187 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Profile header */}
+    <ScreenWrapper paddingBottom={120}>
+      {/* Avatar + profile info */}
       <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{user?.displayName?.[0]?.toUpperCase() ?? '?'}</Text>
-        </View>
+        <LinearGradient
+          colors={Gradients.primary}
+          style={styles.avatarRing}
+        >
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {user?.displayName?.[0]?.toUpperCase() ?? '?'}
+            </Text>
+          </View>
+        </LinearGradient>
         <Text style={styles.name}>{user?.displayName}</Text>
         <Text style={styles.email}>{user?.email}</Text>
       </View>
 
       {/* Streak */}
       {streak && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Streak</Text>
-          <View style={styles.streakRow}>
-            <Text style={styles.streakNum}>{streak.currentStreak}🔥</Text>
-            <Text style={styles.streakSub}>Longest: {streak.longestStreak} days</Text>
-          </View>
-        </View>
+        <>
+          <SectionHeader title="Streak" />
+          <Card gradientAccent={Gradients.accent}>
+            <View style={styles.streakRow}>
+              <View style={styles.streakLeft}>
+                <Text style={styles.streakNum}>{streak.currentStreak}</Text>
+                <Text style={styles.streakUnit}>days 🔥</Text>
+              </View>
+              <View style={styles.streakDivider} />
+              <View style={styles.streakRight}>
+                <Text style={styles.streakBestNum}>{streak.longestStreak}</Text>
+                <Text style={styles.streakBestLabel}>BEST</Text>
+              </View>
+            </View>
+          </Card>
+        </>
       )}
 
       {/* Milestones */}
       {milestones && milestones.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Milestones ({milestones.length})</Text>
+        <>
+          <SectionHeader title="Milestones" action={`${milestones.length} earned`} />
           {milestones.slice(0, 5).map((m: any) => (
-            <View key={m.id} style={styles.milestoneCard}>
-              <Text style={styles.milestoneTitle}>{m.title}</Text>
-              <Text style={styles.milestoneDate}>
-                {new Date(m.achievedAt).toLocaleDateString()}
-              </Text>
-            </View>
+            <Card key={m.id} style={styles.milestoneCard} accentColor={Colors.streakGold}>
+              <View style={styles.milestoneRow}>
+                <Text style={styles.milestoneEmoji}>🏅</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.milestoneTitle}>{m.title}</Text>
+                  <Text style={styles.milestoneDate}>
+                    {new Date(m.achievedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                </View>
+              </View>
+            </Card>
           ))}
-        </View>
+        </>
       )}
 
       {/* Actions */}
-      <View style={styles.section}>
-        <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/body/log')}>
-          <Text style={styles.actionText}>📏 Log Body Measurements</Text>
-        </TouchableOpacity>
-      </View>
+      <SectionHeader title="Quick Actions" />
+      <Card onPress={() => router.push('/body/log')} style={styles.actionCard}>
+        <Text style={styles.actionText}>📏  Log Body Measurements</Text>
+      </Card>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Log Out</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      {/* Logout */}
+      <View style={{ marginTop: Spacing.xxl }}>
+        <GradientButton
+          title="Log Out"
+          variant="danger"
+          onPress={handleLogout}
+        />
+      </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: Colors.bg },
-  content:        { padding: Spacing.lg, paddingBottom: 100 },
-  header:         { alignItems: 'center', marginBottom: Spacing.xl },
-  avatar:         {
-    width:           80, height: 80,
+  header: {
+    alignItems:   'center',
+    marginBottom: Spacing.lg,
+    paddingTop:   Spacing.md,
+  },
+  avatarRing: {
+    width:        88,
+    height:       88,
+    borderRadius: 44,
+    alignItems:   'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+    ...Shadows.glow(Colors.primary),
+  },
+  avatar: {
+    width:           80,
+    height:          80,
     borderRadius:    40,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.bg,
     alignItems:      'center',
     justifyContent:  'center',
-    marginBottom:    Spacing.md,
   },
-  avatarText:     { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: Colors.text },
-  name:           { fontSize: FontSize.xl,  fontWeight: FontWeight.bold, color: Colors.text },
-  email:          { fontSize: FontSize.sm,  color: Colors.textMuted, marginTop: Spacing.xs },
-  section:        { marginBottom: Spacing.xl },
-  sectionTitle:   { fontSize: FontSize.lg, fontWeight: FontWeight.semibold, color: Colors.text, marginBottom: Spacing.md },
-  streakRow:      { flexDirection: 'row', alignItems: 'center', gap: Spacing.xl },
-  streakNum:      { fontSize: FontSize.xxxl, fontWeight: FontWeight.black, color: Colors.streak },
-  streakSub:      { fontSize: FontSize.sm, color: Colors.textMuted },
-  milestoneCard:  {
-    flexDirection:   'row',
-    justifyContent:  'space-between',
-    backgroundColor: Colors.bgCard,
-    borderRadius:    Radius.md,
-    padding:         Spacing.md,
-    marginBottom:    Spacing.sm,
-    borderWidth:     1,
-    borderColor:     Colors.border,
+  avatarText: {
+    fontSize:   FontSize.xxl,
+    fontWeight: FontWeight.extrabold,
+    color:      Colors.primary,
   },
-  milestoneTitle: { fontSize: FontSize.sm, color: Colors.text, fontWeight: FontWeight.medium },
-  milestoneDate:  { fontSize: FontSize.xs, color: Colors.textMuted },
-  actionRow:      {
-    backgroundColor: Colors.bgCard,
-    borderRadius:    Radius.md,
-    padding:         Spacing.md,
-    borderWidth:     1,
-    borderColor:     Colors.border,
+  name: {
+    fontSize:      FontSize.xl,
+    fontWeight:    FontWeight.bold,
+    color:         Colors.text,
+    letterSpacing: -0.3,
   },
-  actionText:     { color: Colors.text, fontSize: FontSize.md },
-  logoutButton:   {
-    borderWidth:  1,
-    borderColor:  Colors.error,
-    borderRadius: Radius.md,
-    padding:      Spacing.md,
-    alignItems:   'center',
+  email: {
+    fontSize:  FontSize.sm,
+    color:     Colors.textMuted,
+    marginTop: Spacing.xs,
   },
-  logoutText:     { color: Colors.error, fontWeight: FontWeight.semibold, fontSize: FontSize.md },
+  streakRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    paddingTop:    Spacing.xs,
+  },
+  streakLeft: {
+    flex:       1,
+    alignItems: 'center',
+  },
+  streakNum: {
+    fontSize:   FontSize.hero,
+    fontWeight: FontWeight.black,
+    color:      Colors.accent,
+    lineHeight: 46,
+  },
+  streakUnit: {
+    fontSize:      FontSize.sm,
+    color:         Colors.textSecondary,
+    fontWeight:    FontWeight.medium,
+  },
+  streakDivider: {
+    width:           1,
+    height:          48,
+    backgroundColor: Colors.border,
+  },
+  streakRight: {
+    flex:       1,
+    alignItems: 'center',
+  },
+  streakBestNum: {
+    fontSize:   FontSize.xxl,
+    fontWeight: FontWeight.bold,
+    color:      Colors.text,
+  },
+  streakBestLabel: {
+    fontSize:      FontSize.xxs,
+    color:         Colors.textMuted,
+    fontWeight:    FontWeight.semibold,
+    letterSpacing: 1.5,
+  },
+  milestoneCard: {
+    marginBottom: Spacing.sm,
+  },
+  milestoneRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           Spacing.md,
+    paddingTop:    Spacing.xs,
+  },
+  milestoneEmoji: {
+    fontSize: 24,
+  },
+  milestoneTitle: {
+    fontSize:   FontSize.sm,
+    color:      Colors.text,
+    fontWeight: FontWeight.semibold,
+  },
+  milestoneDate: {
+    fontSize:  FontSize.xs,
+    color:     Colors.textMuted,
+    marginTop: 2,
+  },
+  actionCard: {
+    marginBottom: Spacing.sm,
+  },
+  actionText: {
+    color:    Colors.text,
+    fontSize: FontSize.md,
+  },
 });

@@ -1,11 +1,19 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../../src/api/client';
-import { Colors, Spacing, FontSize, FontWeight, Radius } from '../../src/theme';
+import { Colors, Spacing, Radius, FontSize, FontWeight, Gradients, Shadows } from '../../src/theme';
+import { ScreenWrapper, StatCard, SectionHeader, Card } from '../../src/components/ui';
 
 export default function AnalyticsScreen() {
-  const { data: overview, isLoading } = useQuery({ queryKey: ['analytics', 'overview'], queryFn: api.analytics.overview });
-  const { data: muscleBalance }       = useQuery({ queryKey: ['analytics', 'muscleBalance'], queryFn: () => api.analytics.muscleBalance(30) });
+  const { data: overview, isLoading } = useQuery({
+    queryKey: ['analytics', 'overview'],
+    queryFn:  api.analytics.overview,
+  });
+  const { data: muscleBalance } = useQuery({
+    queryKey: ['analytics', 'muscleBalance'],
+    queryFn:  () => api.analytics.muscleBalance(30),
+  });
 
   if (isLoading) {
     return (
@@ -15,63 +23,103 @@ export default function AnalyticsScreen() {
     );
   }
 
+  const maxVolume = muscleBalance?.length
+    ? Math.max(...muscleBalance.map((r: any) => r.volume))
+    : 1;
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScreenWrapper paddingBottom={120}>
       <Text style={styles.title}>Analytics</Text>
+      <Text style={styles.subtitle}>Your training at a glance</Text>
 
       {overview && (
-        <View style={styles.overviewGrid}>
-          <OverviewCard label="Total Workouts" value={overview.totalWorkouts} />
-          <OverviewCard label="Total Volume" value={`${Math.round((overview.totalVolumeKg ?? 0) / 1000)}t`} />
-          <OverviewCard label="Total PRs" value={overview.totalPrs} />
-          <OverviewCard label="Total Sets" value={overview.totalSets} />
-        </View>
+        <>
+          <View style={styles.statsRow}>
+            <StatCard label="Workouts" value={overview.totalWorkouts} icon="🏋️" gradient={Gradients.primarySoft} />
+            <StatCard label="Volume" value={`${Math.round((overview.totalVolumeKg ?? 0) / 1000)}t`} icon="⚖️" gradient={Gradients.accentSoft} />
+          </View>
+          <View style={styles.statsRow}>
+            <StatCard label="PRs" value={overview.totalPrs} icon="🏆" gradient={Gradients.primarySoft} />
+            <StatCard label="Total Sets" value={overview.totalSets} icon="📦" gradient={Gradients.accentSoft} />
+          </View>
+        </>
       )}
 
       {muscleBalance && muscleBalance.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>Muscle Volume (Last 30 days)</Text>
-          {muscleBalance.slice(0, 8).map((row: any) => (
-            <View key={row.muscleGroup} style={styles.muscleRow}>
-              <Text style={styles.muscleName}>{row.muscleGroup}</Text>
-              <Text style={styles.muscleVolume}>{Math.round(row.volume)} kg</Text>
-            </View>
-          ))}
+          <SectionHeader title="Muscle Volume" action="Last 30 days" />
+          <Card style={styles.chartCard}>
+            {muscleBalance.slice(0, 8).map((row: any, i: number) => {
+              const pct = Math.round((row.volume / maxVolume) * 100);
+              const muscleColors = Object.values(Colors.muscle);
+              const barColor = muscleColors[i % muscleColors.length];
+              return (
+                <View key={row.muscleGroup} style={styles.barRow}>
+                  <Text style={styles.barLabel}>{row.muscleGroup}</Text>
+                  <View style={styles.barTrack}>
+                    <LinearGradient
+                      colors={[barColor, `${barColor}88`]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.barFill, { width: `${Math.max(pct, 4)}%` }]}
+                    />
+                  </View>
+                  <Text style={styles.barValue}>{Math.round(row.volume)}</Text>
+                </View>
+              );
+            })}
+          </Card>
         </>
       )}
-    </ScrollView>
-  );
-}
-
-function OverviewCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <View style={styles.card}>
-      <Text style={styles.cardValue}>{value}</Text>
-      <Text style={styles.cardLabel}>{label}</Text>
-    </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container:     { flex: 1, backgroundColor: Colors.bg },
-  content:       { padding: Spacing.lg, paddingBottom: 100 },
-  center:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title:         { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: Colors.text, marginBottom: Spacing.xl },
-  overviewGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, marginBottom: Spacing.xl },
-  card:          {
-    flex:            1,
-    minWidth:        '45%',
-    backgroundColor: Colors.bgCard,
-    borderRadius:    Radius.md,
-    padding:         Spacing.md,
-    alignItems:      'center',
-    borderWidth:     1,
-    borderColor:     Colors.border,
+  center:    { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bg },
+  title:     {
+    fontSize:      FontSize.xxxl,
+    fontWeight:    FontWeight.extrabold,
+    color:         Colors.text,
+    letterSpacing: -0.5,
+    paddingTop:    Spacing.sm,
   },
-  cardValue:     { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: Colors.primary },
-  cardLabel:     { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: Spacing.xs },
-  sectionTitle:  { fontSize: FontSize.lg, fontWeight: FontWeight.semibold, color: Colors.text, marginBottom: Spacing.md },
-  muscleRow:     { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  muscleName:    { fontSize: FontSize.sm, color: Colors.text },
-  muscleVolume:  { fontSize: FontSize.sm, color: Colors.primary, fontWeight: FontWeight.semibold },
+  subtitle:  {
+    fontSize:     FontSize.md,
+    color:        Colors.textMuted,
+    marginTop:    Spacing.xs,
+    marginBottom: Spacing.lg,
+  },
+  statsRow:  { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.md },
+  chartCard: { padding: Spacing.md },
+  barRow:    {
+    flexDirection:  'row',
+    alignItems:     'center',
+    marginBottom:   Spacing.sm,
+    gap:            Spacing.sm,
+  },
+  barLabel:  {
+    width:      80,
+    fontSize:   FontSize.xs,
+    color:      Colors.textSecondary,
+    fontWeight: FontWeight.medium,
+  },
+  barTrack:  {
+    flex:            1,
+    height:          20,
+    backgroundColor: Colors.bgMuted,
+    borderRadius:    Radius.xs,
+    overflow:        'hidden',
+  },
+  barFill:   {
+    height:       '100%',
+    borderRadius: Radius.xs,
+  },
+  barValue:  {
+    width:      40,
+    fontSize:   FontSize.xs,
+    color:      Colors.textMuted,
+    textAlign:  'right',
+    fontWeight: FontWeight.semibold,
+  },
 });

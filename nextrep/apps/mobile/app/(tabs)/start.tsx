@@ -1,9 +1,11 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../../src/api/client';
 import { useActiveWorkoutStore } from '../../src/store/workoutStore';
-import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../src/theme';
+import { Colors, Spacing, Radius, FontSize, FontWeight, Gradients, Shadows } from '../../src/theme';
+import { ScreenWrapper, Card, GradientButton, SectionHeader, Badge } from '../../src/components/ui';
 
 export default function StartScreen() {
   const isActive      = useActiveWorkoutStore((s) => s.isActive);
@@ -31,98 +33,136 @@ export default function StartScreen() {
       return;
     }
     startWorkout(template.name, template.id);
-    // Pre-populate exercises from the template
     if (template.exercises?.length) {
       for (const te of template.exercises) {
         const ex = te.exercise;
         if (!ex) continue;
         addExercise(ex.id, ex.name);
-        // Add the target number of sets
         const numSets = te.targetSets ?? te.defaultSets ?? 3;
-        for (let i = 0; i < numSets; i++) {
-          addSet(ex.id);
-        }
+        for (let i = 0; i < numSets; i++) addSet(ex.id);
       }
     }
     router.push('/workout/active');
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScreenWrapper paddingBottom={120}>
       <Text style={styles.title}>Start Workout</Text>
+      <Text style={styles.subtitle}>Pick a template or go freestyle</Text>
 
       {/* Active workout resume */}
       {isActive && (
-        <TouchableOpacity style={styles.resumeCard} onPress={() => router.push('/workout/active')}>
-          <Text style={styles.resumeText}>🔴 Resume Active Workout</Text>
-        </TouchableOpacity>
+        <GradientButton
+          title="Resume Active Workout"
+          icon="🔴"
+          variant="danger"
+          onPress={() => router.push('/workout/active')}
+          style={{ marginBottom: Spacing.lg }}
+        />
       )}
 
       {/* Quick start */}
-      <TouchableOpacity style={styles.quickStart} onPress={handleStartEmpty}>
-        <Text style={styles.quickStartText}>⚡ Quick Start (Empty)</Text>
+      <LinearGradient
+        colors={Gradients.accent}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.quickStart, Shadows.lg]}
+      >
+        <GradientButton
+          title="Quick Start"
+          icon="⚡"
+          variant="ghost"
+          onPress={handleStartEmpty}
+          size="lg"
+          style={styles.quickStartBtn}
+        />
         <Text style={styles.quickStartSub}>No template — just start lifting</Text>
-      </TouchableOpacity>
+      </LinearGradient>
 
       {/* Templates */}
       {templates && templates.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>My Templates</Text>
+          <SectionHeader title="My Templates" />
           {templates.map((t: any) => (
-            <TouchableOpacity
+            <Card
               key={t.id}
               style={styles.templateCard}
+              gradientAccent={Gradients.primary}
               onPress={() => handleStartFromTemplate(t)}
             >
-              <Text style={styles.templateName}>{t.name}</Text>
+              <View style={styles.templateHeader}>
+                <Text style={styles.templateName}>{t.name}</Text>
+                <Badge
+                  label={`${t.exercises?.length ?? 0} exercises`}
+                  color={Colors.primary}
+                  bgColor={Colors.primaryMuted}
+                />
+              </View>
               {t.description && (
                 <Text style={styles.templateDesc}>{t.description}</Text>
               )}
-              <Text style={styles.templateMeta}>{t.exercises?.length ?? 0} exercises</Text>
-            </TouchableOpacity>
+            </Card>
           ))}
         </>
       )}
 
-      <TouchableOpacity style={styles.manageTemplates} onPress={() => router.push('/template/new')}>
-        <Text style={styles.manageTemplatesText}>+ Create Template</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      <GradientButton
+        title="Create Template"
+        icon="+"
+        variant="ghost"
+        onPress={() => router.push('/template/new')}
+        style={{ marginTop: Spacing.lg }}
+      />
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container:          { flex: 1, backgroundColor: Colors.bg },
-  content:            { padding: Spacing.lg, paddingBottom: 100 },
-  title:              { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: Colors.text, marginBottom: Spacing.xl },
-  resumeCard:         {
-    backgroundColor: Colors.error,
-    borderRadius:    Radius.md,
-    padding:         Spacing.md,
-    marginBottom:    Spacing.lg,
-    alignItems:      'center',
+  title: {
+    fontSize:      FontSize.xxxl,
+    fontWeight:    FontWeight.extrabold,
+    color:         Colors.text,
+    letterSpacing: -0.5,
+    paddingTop:    Spacing.sm,
   },
-  resumeText:         { color: Colors.text, fontWeight: FontWeight.bold, fontSize: FontSize.md },
-  quickStart:         {
-    backgroundColor: Colors.primary,
-    borderRadius:    Radius.lg,
-    padding:         Spacing.xl,
-    marginBottom:    Spacing.xl,
+  subtitle: {
+    fontSize:     FontSize.md,
+    color:        Colors.textMuted,
+    marginTop:    Spacing.xs,
+    marginBottom: Spacing.xl,
   },
-  quickStartText:     { color: Colors.text, fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  quickStartSub:      { color: Colors.primaryLight, fontSize: FontSize.sm, marginTop: Spacing.xs },
-  sectionTitle:       { fontSize: FontSize.lg, fontWeight: FontWeight.semibold, color: Colors.textMuted, marginBottom: Spacing.md },
-  templateCard:       {
-    backgroundColor: Colors.bgCard,
-    borderRadius:    Radius.md,
-    padding:         Spacing.md,
-    marginBottom:    Spacing.md,
-    borderWidth:     1,
-    borderColor:     Colors.border,
+  quickStart: {
+    borderRadius:  Radius.lg,
+    padding:       Spacing.xl,
+    marginBottom:  Spacing.md,
+    alignItems:    'center',
   },
-  templateName:       { fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: Colors.text },
-  templateDesc:       { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: Spacing.xs },
-  templateMeta:       { fontSize: FontSize.xs, color: Colors.primary, marginTop: Spacing.sm },
-  manageTemplates:    { alignItems: 'center', marginTop: Spacing.lg },
-  manageTemplatesText:{ color: Colors.primary, fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  quickStartBtn: {
+    borderColor: 'rgba(255,255,255,0.3)',
+    minWidth:    200,
+  },
+  quickStartSub: {
+    color:      'rgba(255,255,255,0.7)',
+    fontSize:   FontSize.sm,
+    marginTop:  Spacing.sm,
+  },
+  templateCard: {
+    marginBottom: Spacing.md,
+  },
+  templateHeader: {
+    flexDirection:  'row',
+    justifyContent: 'space-between',
+    alignItems:     'center',
+    paddingTop:     Spacing.xs,
+  },
+  templateName: {
+    fontSize:   FontSize.md,
+    fontWeight: FontWeight.bold,
+    color:      Colors.text,
+  },
+  templateDesc: {
+    fontSize:  FontSize.sm,
+    color:     Colors.textMuted,
+    marginTop: Spacing.xs,
+  },
 });
