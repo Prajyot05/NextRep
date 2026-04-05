@@ -1,8 +1,28 @@
-CREATE TYPE "public"."exercise_category" AS ENUM('BARBELL', 'DUMBBELL', 'MACHINE', 'CABLE', 'BODYWEIGHT', 'BAND', 'KETTLEBELL', 'CARDIO', 'OTHER');--> statement-breakpoint
-CREATE TYPE "public"."muscle_group" AS ENUM('CHEST', 'BACK', 'SHOULDERS', 'BICEPS', 'TRICEPS', 'QUADS', 'HAMSTRINGS', 'GLUTES', 'CALVES', 'ABS', 'FOREARMS', 'TRAPS', 'LATS', 'FULL_BODY');--> statement-breakpoint
-CREATE TYPE "public"."set_type" AS ENUM('WARMUP', 'WORKING', 'DROPSET', 'FAILURE', 'AMRAP');--> statement-breakpoint
-CREATE TYPE "public"."pr_type" AS ENUM('MAX_WEIGHT', 'MAX_REPS', 'MAX_VOLUME', 'ESTIMATED_1RM');--> statement-breakpoint
-CREATE TYPE "public"."milestone_type" AS ENUM('WORKOUT_COUNT', 'STREAK', 'PR', 'TOTAL_VOLUME', 'BODY_WEIGHT', 'EXERCISE_MASTERY', 'CONSISTENCY');--> statement-breakpoint
+DO $$ BEGIN
+	CREATE TYPE "public"."exercise_category" AS ENUM('BARBELL', 'DUMBBELL', 'MACHINE', 'CABLE', 'BODYWEIGHT', 'BAND', 'KETTLEBELL', 'CARDIO', 'OTHER');
+EXCEPTION
+	WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+	CREATE TYPE "public"."muscle_group" AS ENUM('CHEST', 'BACK', 'SHOULDERS', 'BICEPS', 'TRICEPS', 'QUADS', 'HAMSTRINGS', 'GLUTES', 'CALVES', 'ABS', 'FOREARMS', 'TRAPS', 'LATS', 'FULL_BODY');
+EXCEPTION
+	WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+	CREATE TYPE "public"."set_type" AS ENUM('WARMUP', 'WORKING', 'DROPSET', 'FAILURE', 'AMRAP');
+EXCEPTION
+	WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+	CREATE TYPE "public"."pr_type" AS ENUM('MAX_WEIGHT', 'MAX_REPS', 'MAX_VOLUME', 'ESTIMATED_1RM');
+EXCEPTION
+	WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+	CREATE TYPE "public"."milestone_type" AS ENUM('WORKOUT_COUNT', 'STREAK', 'PR', 'TOTAL_VOLUME', 'BODY_WEIGHT', 'EXERCISE_MASTERY', 'CONSISTENCY');
+EXCEPTION
+	WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"email" text NOT NULL,

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../src/api/client';
+import { api, getUserFriendlyErrorMessage } from '../../src/api/client';
 import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../src/theme';
 
 export default function BodyLogScreen() {
@@ -29,7 +29,7 @@ export default function BodyLogScreen() {
       Alert.alert('Saved!', 'Body measurement recorded.');
       router.back();
     },
-    onError: (err: any) => Alert.alert('Error', err.message),
+    onError: (err: unknown) => Alert.alert('Error', getUserFriendlyErrorMessage(err)),
   });
 
   function handleSave() {

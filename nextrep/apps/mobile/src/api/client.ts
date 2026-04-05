@@ -4,6 +4,8 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 const ACCESS_TOKEN_KEY  = 'nextrep_access_token';
 const REFRESH_TOKEN_KEY = 'nextrep_refresh_token';
 
+type ErrorDetails = Record<string, unknown> | null;
+
 // ─── Token storage ─────────────────────────────────────────────────────────────
 export async function saveTokens(accessToken: string, refreshToken: string) {
   await Promise.all([
@@ -37,10 +39,105 @@ export class ApiError extends Error {
     public statusCode: number,
     public code: string,
     message: string,
+    public details: ErrorDetails = null,
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+function toTitle(field: string): string {
+  return field
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/_/g, ' ')
+    .trim()
+    .replace(/^./, (s) => s.toUpperCase());
+}
+
+function firstValidationMessage(details: ErrorDetails): string | null {
+  if (!details || typeof details !== 'object') return null;
+
+  for (const [field, value] of Object.entries(details)) {
+    if (Array.isArray(value) && typeof value[0] === 'string') {
+      return `${toTitle(field)}: ${value[0]}`;
+    }
+  }
+
+  return null;
+}
+
+function extractErrorInfo(payload: any): { code: string; rawMessage: string; details: ErrorDetails } {
+  const error = payload?.error;
+  const code =
+    (typeof error?.code === 'string' && error.code) ||
+    (typeof payload?.code === 'string' && payload.code) ||
+    'UNKNOWN';
+
+  const details =
+    code === 'VALIDATION_ERROR' && error && typeof error === 'object' && !Array.isArray(error)
+      ? (error as Record<string, unknown>)
+      : null;
+
+  const rawMessage =
+    (typeof error?.message === 'string' && error.message) ||
+    (typeof error === 'string' && error) ||
+    (typeof payload?.message === 'string' && payload.message) ||
+    '';
+
+  return { code, rawMessage, details };
+}
+
+function toFriendlyMessage(params: {
+  code: string;
+  statusCode: number;
+  rawMessage: string;
+  path: string;
+  details: ErrorDetails;
+}): string {
+  const { code, statusCode, rawMessage, path, details } = params;
+
+  if (code === 'EMAIL_TAKEN' || (statusCode === 409 && path === '/auth/register')) {
+    return 'This email is already registered. Log in instead, or use a different email address.';
+  }
+
+  if (code === 'INVALID_CREDENTIALS') {
+    return 'Incorrect email or password. Please check your details and try again.';
+  }
+
+  if (code === 'VALIDATION_ERROR') {
+    return firstValidationMessage(details) ?? 'Some fields are invalid. Please review your entries and try again.';
+  }
+
+  if (code === 'TOKEN_EXPIRED' || code === 'INVALID_TOKEN' || code === 'UNAUTHORIZED') {
+    return 'Your session has expired. Please log in again.';
+  }
+
+  if (code === 'RATE_LIMITED' || statusCode === 429) {
+    return 'Too many attempts in a short time. Please wait a moment and try again.';
+  }
+
+  if (statusCode === 400) return 'The request could not be processed. Please check your input and try again.';
+  if (statusCode === 401) return 'You are not authorized. Please log in and try again.';
+  if (statusCode === 403) return 'You do not have permission to perform this action.';
+  if (statusCode === 404) return 'We could not find what you requested.';
+
+  if (statusCode === 409) {
+    if (rawMessage && rawMessage.toLowerCase() !== 'conflict') return rawMessage;
+    return 'This action conflicts with existing data. Please review your input and try again.';
+  }
+
+  if (statusCode >= 500) {
+    return 'Something went wrong on our side. Please try again in a few moments.';
+  }
+
+  if (rawMessage) return rawMessage;
+  return 'Something went wrong. Please try again.';
+}
+
+export function getUserFriendlyErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
+  if (error instanceof ApiError && error.message) return error.message;
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
 }
 
 async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
@@ -55,7 +152,16 @@ async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
     if (token) headers['Authorization'] = `Bearer ${token}`;
   }
 
-  let res = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers });
+  } catch {
+    throw new ApiError(
+      0,
+      'NETWORK_ERROR',
+      'Cannot reach the server. Please check your connection and ensure the API is running and reachable from your device.',
+    );
+  }
 
   // Attempt token refresh on 401
   if (res.status === 401 && !skipAuth) {
@@ -63,17 +169,47 @@ async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
     if (refreshed) {
       const newToken = await getAccessToken();
       if (newToken) headers['Authorization'] = `Bearer ${newToken}`;
-      res = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers });
+      try {
+        res = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers });
+      } catch {
+        throw new ApiError(
+          0,
+          'NETWORK_ERROR',
+          'Cannot reach the server. Please check your connection and ensure the API is running and reachable from your device.',
+        );
+      }
     }
   }
 
-  const json = await res.json();
+  let json: any = null;
+  const text = await res.text();
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = null;
+    }
+  }
 
-  if (!res.ok || !json.success) {
+  if (!res.ok || json?.success === false) {
+    const { code, rawMessage, details } = extractErrorInfo(json);
     throw new ApiError(
       res.status,
-      json.error?.code ?? json.code ?? 'UNKNOWN',
-      json.error?.message ?? json.error ?? 'Request failed',
+      code,
+      toFriendlyMessage({ code, statusCode: res.status, rawMessage, path, details }),
+      details,
+    );
+  }
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
+  if (!json || typeof json !== 'object') {
+    throw new ApiError(
+      res.status,
+      'INVALID_RESPONSE',
+      'Received an unexpected response from the server. Please try again.',
     );
   }
 
