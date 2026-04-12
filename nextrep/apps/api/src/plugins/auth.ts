@@ -21,6 +21,7 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
       '/auth/register',
       '/auth/login',
       '/auth/refresh',
+      '/exercises/catalog',
     ];
     if (publicPaths.some((p) => request.url.startsWith(p))) return;
 

@@ -17,7 +17,12 @@ export const CreateExerciseSchema = z.object({
   secondaryMuscles: z.array(MuscleGroupEnum).default([]),
   category: ExerciseCategoryEnum,
   equipment: z.string().max(100).optional(),
-  instructions: z.string().max(2000).optional(),
+  instructions: z.string().max(5000).optional(),
+  catalogId: z.string().max(100).optional(),
+  imageUrl: z.string().max(500).optional(),
+  level: z.string().max(50).optional(),
+  force: z.string().max(50).optional(),
+  mechanic: z.string().max(50).optional(),
 });
 
 

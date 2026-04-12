@@ -255,6 +255,7 @@ export const api = {
       apiFetch<any[]>(`/exercises?${new URLSearchParams(params as any).toString()}`),
     get: (id: string) => apiFetch<any>(`/exercises/${id}`),
     create: (body: any) => apiFetch<any>('/exercises', { method: 'POST', body: JSON.stringify(body) }),
+    catalog: () => apiFetch<any[]>('/exercises/catalog', { skipAuth: true }),
   },
 
   // Templates

@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../src/api/client';
+import { getExerciseImageUrl } from '../../src/api/exerciseApi';
 import { Colors, Spacing, Radius, FontSize, FontWeight, Gradients, Shadows } from '../../src/theme';
 import { ScreenWrapper, Card, StatCard, SectionHeader, Badge } from '../../src/components/ui';
 
@@ -23,10 +24,14 @@ export default function WorkoutDetailScreen() {
   }
 
   // Group sets by exercise
-  const byExercise: Record<string, { name: string; sets: any[] }> = {};
+  const byExercise: Record<string, { name: string; exercise: any; sets: any[] }> = {};
   for (const set of workout.sets ?? []) {
     if (!byExercise[set.exerciseId]) {
-      byExercise[set.exerciseId] = { name: set.exercise?.name ?? 'Unknown', sets: [] };
+      byExercise[set.exerciseId] = {
+        name: set.exercise?.name ?? 'Unknown Exercise',
+        exercise: set.exercise ?? null,
+        sets: [],
+      };
     }
     byExercise[set.exerciseId].sets.push(set);
   }
@@ -67,26 +72,49 @@ export default function WorkoutDetailScreen() {
 
       {/* Exercises */}
       <SectionHeader title="Exercises" />
-      {Object.entries(byExercise).map(([exId, { name, sets }]) => (
-        <Card key={exId} style={styles.exerciseBlock} gradientAccent={Gradients.primary}>
-          <Text style={styles.exerciseName}>{name}</Text>
-          {sets.map((set: any, i: number) => (
-            <View key={set.id ?? i} style={styles.setRow}>
-              <Text style={styles.setNum}>{i + 1}</Text>
-              <Text style={styles.setDetails}>
-                {set.weightKg ? `${set.weightKg} kg` : '—'}
-                {set.reps ? ` × ${set.reps}` : ''}
-              </Text>
-              {set.type !== 'WORKING' && (
-                <Badge label={set.type} color={Colors.warning} bgColor={Colors.warningMuted} />
+      {Object.entries(byExercise).map(([exId, { name, exercise, sets }]) => {
+        const imageUrl = exercise ? getExerciseImageUrl(exercise) : null;
+
+        return (
+          <Card key={exId} style={styles.exerciseBlock} gradientAccent={Gradients.primary}>
+            <View style={styles.exerciseHeader}>
+              {imageUrl && (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={styles.exerciseThumb}
+                  resizeMode="cover"
+                />
               )}
-              {set.isPr && (
-                <Badge label="🏆 PR" color={Colors.streakGold} bgColor="rgba(255,215,0,0.15)" />
-              )}
+              <View style={styles.exerciseHeaderInfo}>
+                <Text style={styles.exerciseName}>{name}</Text>
+                {exercise?.primaryMuscle && (
+                  <Badge
+                    label={exercise.primaryMuscle}
+                    color={Colors.primary}
+                    bgColor={Colors.primaryMuted}
+                  />
+                )}
+              </View>
             </View>
-          ))}
-        </Card>
-      ))}
+
+            {sets.map((set: any, i: number) => (
+              <View key={set.id ?? i} style={styles.setRow}>
+                <Text style={styles.setNum}>{i + 1}</Text>
+                <Text style={styles.setDetails}>
+                  {set.weightKg ? `${set.weightKg} kg` : '—'}
+                  {set.reps ? ` × ${set.reps}` : ''}
+                </Text>
+                {set.type !== 'WORKING' && (
+                  <Badge label={set.type} color={Colors.warning} bgColor={Colors.warningMuted} />
+                )}
+                {set.isPr && (
+                  <Badge label="🏆 PR" color={Colors.streakGold} bgColor="rgba(255,215,0,0.15)" />
+                )}
+              </View>
+            ))}
+          </Card>
+        );
+      })}
     </ScreenWrapper>
   );
 }
@@ -118,12 +146,27 @@ const styles = StyleSheet.create({
   notesLabel:    { fontSize: FontSize.xs, color: Colors.textMuted, marginBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 1 },
   notesText:     { fontSize: FontSize.sm, color: Colors.text, lineHeight: 22 },
   exerciseBlock: { marginBottom: Spacing.md },
+  exerciseHeader: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           Spacing.md,
+    marginBottom:  Spacing.sm,
+    paddingTop:    Spacing.xs,
+  },
+  exerciseThumb: {
+    width:        48,
+    height:       48,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.bgMuted,
+  },
+  exerciseHeaderInfo: {
+    flex: 1,
+    gap:  Spacing.xs,
+  },
   exerciseName:  {
     fontSize:     FontSize.md,
     fontWeight:   FontWeight.bold,
     color:        Colors.text,
-    marginBottom: Spacing.sm,
-    paddingTop:   Spacing.xs,
   },
   setRow:        {
     flexDirection: 'row',

@@ -8,6 +8,13 @@
       "when": 1773681882294,
       "tag": "0000_light_kree",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775980754857,
+      "tag": "0001_dry_shadow_king",
+      "breakpoints": true
     }
   ]
 }

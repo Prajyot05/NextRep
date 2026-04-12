@@ -28,12 +28,17 @@ export type ExerciseCategory =
 export interface Exercise {
   id: string;
   userId: string | null;
+  catalogId: string | null;
   name: string;
   primaryMuscle: MuscleGroup;
   secondaryMuscles: MuscleGroup[];
   category: ExerciseCategory;
   equipment: string | null;
   instructions: string | null;
+  imageUrl: string | null;
+  level: string | null;
+  force: string | null;
+  mechanic: string | null;
   isCustom: boolean;
   createdAt: string;
   isArchived: boolean;
@@ -42,4 +47,10 @@ export interface Exercise {
 export type CreateExerciseInput = Pick<
   Exercise,
   'name' | 'primaryMuscle' | 'secondaryMuscles' | 'category' | 'equipment' | 'instructions'
->;
+> & {
+  catalogId?: string;
+  imageUrl?: string;
+  level?: string;
+  force?: string;
+  mechanic?: string;
+};

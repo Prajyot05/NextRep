@@ -1,18 +1,11 @@
-import { Tabs, router } from 'expo-router';
-import { useEffect } from 'react';
+import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../src/store/authStore';
 import { Colors, Shadows, Spacing, Radius, FontSize } from '../../src/theme';
 
 export default function TabsLayout() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    if (!isAuthenticated) router.replace('/(auth)/login');
-  }, [isAuthenticated]);
 
   return (
     <Tabs

@@ -81,7 +81,10 @@ export async function getSessionById(userId: string, sessionId: string) {
   const session = await db.query.workoutSessions.findFirst({
     where: and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId), eq(workoutSessions.isDeleted, false)),
     with: {
-      sets: { orderBy: [workoutSets.setNumber] },
+      sets: {
+        orderBy: [workoutSets.setNumber],
+        with: { exercise: true },
+      },
     },
   });
   if (!session) throw Object.assign(new Error('Session not found'), { status: 404 });

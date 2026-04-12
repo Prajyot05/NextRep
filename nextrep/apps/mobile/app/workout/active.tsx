@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  TextInput, Alert, Modal, FlatList,
+  TextInput, Alert, Modal, FlatList, Image, ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,8 +10,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActiveWorkoutStore } from '../../src/store/workoutStore';
 import { useSyncStore } from '../../src/store/syncStore';
 import { api, getUserFriendlyErrorMessage } from '../../src/api/client';
+import {
+  fetchCatalog, filterCatalog, selectCatalogExercise,
+  getCatalogImageUrl, getExerciseImageUrl, getAvailableMuscleGroups,
+  type CatalogExercise,
+} from '../../src/api/exerciseApi';
 import { Colors, Spacing, Radius, FontSize, FontWeight, Gradients, Shadows } from '../../src/theme';
-import { Card, Badge, GradientButton } from '../../src/components/ui';
+import { Badge, GradientButton } from '../../src/components/ui';
 
 function formatTime(seconds: number) {
   const h = Math.floor(seconds / 3600);
@@ -22,29 +27,81 @@ function formatTime(seconds: number) {
     : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+// ─── Level badge colors ─────────────────────────────────────────────────────
+function getLevelStyle(level: string) {
+  switch (level) {
+    case 'beginner':     return { color: Colors.success, bg: Colors.successMuted };
+    case 'intermediate': return { color: Colors.warning, bg: Colors.warningMuted };
+    case 'expert':       return { color: Colors.error,   bg: Colors.errorMuted };
+    default:             return { color: Colors.textMuted, bg: Colors.bgMuted };
+  }
+}
+
+// ─── Muscle filter chips ────────────────────────────────────────────────────
+const MUSCLE_EMOJI: Record<string, string> = {
+  'abdominals': '🎯', 'biceps': '💪', 'calves': '🦵', 'chest': '🏋️',
+  'forearms': '🤜', 'glutes': '🍑', 'hamstrings': '🦿', 'lats': '🔙',
+  'lower back': '⬇️', 'middle back': '🔙', 'neck': '🦒', 'quadriceps': '🦵',
+  'shoulders': '🔝', 'traps': '⬆️', 'triceps': '🔱', 'adductors': '🦵',
+  'abductors': '🦵',
+};
+
 export default function ActiveWorkoutScreen() {
-  const {
-    name, exercises, elapsedSeconds,
-    addExercise, addSet, updateSet, completeSet, deleteSet,
-    finishWorkout, discardWorkout, tick,
-  } = useActiveWorkoutStore();
+  const isActive = useActiveWorkoutStore((s) => s.isActive);
+  const workoutName = useActiveWorkoutStore((s) => s.name);
+  const exercises = useActiveWorkoutStore((s) => s.exercises);
+  const elapsedSeconds = useActiveWorkoutStore((s) => s.elapsedSeconds);
+  const addExercise = useActiveWorkoutStore((s) => s.addExercise);
+  const addSet = useActiveWorkoutStore((s) => s.addSet);
+  const updateSet = useActiveWorkoutStore((s) => s.updateSet);
+  const completeSet = useActiveWorkoutStore((s) => s.completeSet);
+  const finishWorkout = useActiveWorkoutStore((s) => s.finishWorkout);
+  const discardWorkout = useActiveWorkoutStore((s) => s.discardWorkout);
+  const tick = useActiveWorkoutStore((s) => s.tick);
 
   const { enqueue } = useSyncStore();
   const queryClient  = useQueryClient();
 
   const [exerciseModalOpen, setExerciseModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
+  const [isSelectingExercise, setIsSelectingExercise] = useState(false);
+  const [isFinishing, setIsFinishing] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Only tick when workout is active and not finishing
   useEffect(() => {
+    if (!isActive || isFinishing) {
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      return;
+    }
     timerRef.current = setInterval(tick, 1000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []);
+    return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+  }, [isActive, isFinishing]);
 
-  const { data: allExercises, isLoading: isLoadingExercises, error: exercisesError, refetch: refetchExercises } = useQuery({
-    queryKey: ['exercises'],
-    queryFn:  () => api.exercises.list(),
+  // If we land on this screen but there's no active workout, go back
+  useEffect(() => {
+    if (!isActive && !isFinishing) {
+      router.replace('/(tabs)');
+    }
+  }, [isActive, isFinishing]);
+
+  // Fetch catalog only when modal opens
+  const { data: catalog, isLoading: isLoadingCatalog, error: catalogError, refetch: refetchCatalog } = useQuery({
+    queryKey: ['exerciseCatalog'],
+    queryFn:  () => fetchCatalog(),
     enabled: exerciseModalOpen,
+    staleTime: 24 * 60 * 60 * 1000,
   });
+
+  const availableMuscles = catalog ? getAvailableMuscleGroups(catalog) : [];
+
+  const filteredCatalog = catalog
+    ? filterCatalog(catalog, {
+        query: searchQuery || undefined,
+        muscle: selectedMuscle || undefined,
+      })
+    : [];
 
   const finishMutation = useMutation({
     mutationFn: (session: any) => api.workouts.create(session),
@@ -61,72 +118,131 @@ export default function ActiveWorkoutScreen() {
   });
 
   function handleFinish() {
+    if (isFinishing) return;
     const hasCompletedSets = exercises.some((block) => block.sets.some((s) => s.isCompleted));
     if (!hasCompletedSets) {
       Alert.alert('No sets recorded', 'Log at least one completed set before finishing.');
       return;
     }
+    setIsFinishing(true);
     const result = finishWorkout();
-    if (!result) return;
+    if (!result) { setIsFinishing(false); return; }
     finishMutation.mutate(result.session);
   }
 
   function handleDiscard() {
     Alert.alert('Discard Workout?', 'All progress will be lost.', [
       { text: 'Cancel',  style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: () => { discardWorkout(); router.replace('/(tabs)'); } },
+      { text: 'Discard', style: 'destructive', onPress: () => {
+        setIsFinishing(true);
+        discardWorkout();
+        router.replace('/(tabs)');
+      }},
     ]);
   }
 
+  const handleSelectCatalogExercise = useCallback(async (catalogExercise: CatalogExercise) => {
+    if (isSelectingExercise) return;
+    setIsSelectingExercise(true);
+
+    try {
+      const dbExercise = await selectCatalogExercise(catalogExercise);
+      addExercise(dbExercise.id, dbExercise.name);
+      setExerciseModalOpen(false);
+      setSearchQuery('');
+      setSelectedMuscle(null);
+    } catch (err) {
+      Alert.alert('Error', getUserFriendlyErrorMessage(err, 'Could not add exercise. Please try again.'));
+    } finally {
+      setIsSelectingExercise(false);
+    }
+  }, [isSelectingExercise, addExercise]);
+
   const totalCompletedSets = exercises.reduce((acc, b) => acc + b.sets.filter((s) => s.isCompleted).length, 0);
+  const totalVolume = exercises.reduce((acc, b) => {
+    return acc + b.sets
+      .filter((s) => s.isCompleted && s.weightKg && s.reps)
+      .reduce((sum, s) => sum + (s.weightKg! * s.reps!), 0);
+  }, 0);
+
+  // ── Finishing overlay ───────────────────────────────────────────────────
+  if (isFinishing) {
+    return (
+      <View style={styles.finishingContainer}>
+        <ActivityIndicator color={Colors.primary} size="large" />
+        <Text style={styles.finishingText}>Saving workout...</Text>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Gradient header with timer */}
-      <LinearGradient
-        colors={Gradients.dark}
-        style={styles.header}
-      >
-        <TouchableOpacity onPress={handleDiscard} hitSlop={12}>
-          <Text style={styles.discardBtn}>✕</Text>
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <LinearGradient colors={Gradients.dark} style={styles.header}>
+        <TouchableOpacity onPress={handleDiscard} hitSlop={12} style={styles.headerBtn}>
+          <Text style={styles.discardIcon}>✕</Text>
         </TouchableOpacity>
+
         <View style={styles.timerBox}>
           <Text style={styles.timer}>{formatTime(elapsedSeconds)}</Text>
-          <Text style={styles.workoutName}>{name}</Text>
+          <Text style={styles.workoutName} numberOfLines={1}>{workoutName}</Text>
         </View>
-        <GradientButton
-          title="Finish"
-          onPress={handleFinish}
-          variant="success"
-          size="sm"
-        />
+
+        <TouchableOpacity onPress={handleFinish} style={styles.finishBtn} activeOpacity={0.8}>
+          <LinearGradient colors={Gradients.success} style={styles.finishBtnGrad}>
+            <Text style={styles.finishBtnText}>Finish</Text>
+          </LinearGradient>
+        </TouchableOpacity>
       </LinearGradient>
 
-      {/* Sets summary */}
+      {/* ── Summary bar ────────────────────────────────────────────────── */}
       <View style={styles.summaryBar}>
-        <Badge label={`${totalCompletedSets} sets completed`} color={Colors.success} bgColor={Colors.successMuted} size="md" />
+        <View style={styles.summaryChip}>
+          <Text style={styles.summaryValue}>{totalCompletedSets}</Text>
+          <Text style={styles.summaryLabel}>sets</Text>
+        </View>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryChip}>
+          <Text style={styles.summaryValue}>{exercises.length}</Text>
+          <Text style={styles.summaryLabel}>exercises</Text>
+        </View>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryChip}>
+          <Text style={styles.summaryValue}>{Math.round(totalVolume)}</Text>
+          <Text style={styles.summaryLabel}>kg vol</Text>
+        </View>
       </View>
 
+      {/* ── Exercise blocks ────────────────────────────────────────────── */}
       <ScrollView style={styles.list} contentContainerStyle={{ paddingBottom: 120 }}>
         {exercises.map((block) => (
-          <Card key={block.exerciseId} style={styles.exerciseBlock} gradientAccent={Gradients.primary}>
-            <Text style={styles.exerciseName}>{block.exerciseName}</Text>
+          <View key={block.exerciseId} style={styles.exerciseCard}>
+            {/* Exercise header with name */}
+            <View style={styles.exHeaderRow}>
+              <View style={styles.exNameRow}>
+                <View style={styles.exAccent} />
+                <Text style={styles.exName} numberOfLines={1}>{block.exerciseName}</Text>
+              </View>
+            </View>
 
             {/* Column headers */}
             <View style={styles.setHeader}>
-              <Text style={[styles.setHeaderText, { width: 28 }]}>SET</Text>
-              <Text style={[styles.setHeaderText, { flex: 1 }]}>KG</Text>
-              <Text style={[styles.setHeaderText, { width: 12 }]} />
-              <Text style={[styles.setHeaderText, { flex: 1 }]}>REPS</Text>
-              <Text style={[styles.setHeaderText, { width: 36 }]} />
+              <Text style={[styles.setHeaderCell, { width: 32 }]}>SET</Text>
+              <Text style={[styles.setHeaderCell, { flex: 1 }]}>KG</Text>
+              <Text style={[styles.setHeaderCell, { width: 16 }]} />
+              <Text style={[styles.setHeaderCell, { flex: 1 }]}>REPS</Text>
+              <Text style={[styles.setHeaderCell, { width: 40 }]} />
             </View>
 
+            {/* Sets */}
             {block.sets.map((set) => (
               <View key={set.id} style={[styles.setRow, set.isCompleted && styles.setRowDone]}>
-                <Text style={styles.setNum}>{set.setNumber}</Text>
+                <View style={styles.setNumBadge}>
+                  <Text style={styles.setNum}>{set.setNumber}</Text>
+                </View>
                 <TextInput
                   style={[styles.setInput, set.isCompleted && styles.setInputDone]}
-                  placeholder="0"
+                  placeholder="—"
                   placeholderTextColor={Colors.textDisabled}
                   keyboardType="decimal-pad"
                   value={set.weightKg?.toString() ?? ''}
@@ -136,7 +252,7 @@ export default function ActiveWorkoutScreen() {
                 <Text style={styles.setX}>×</Text>
                 <TextInput
                   style={[styles.setInput, set.isCompleted && styles.setInputDone]}
-                  placeholder="0"
+                  placeholder="—"
                   placeholderTextColor={Colors.textDisabled}
                   keyboardType="number-pad"
                   value={set.reps?.toString() ?? ''}
@@ -145,60 +261,133 @@ export default function ActiveWorkoutScreen() {
                 />
                 {!set.isCompleted ? (
                   <TouchableOpacity
-                    style={styles.doneBtn}
+                    style={styles.checkBtn}
                     onPress={() => completeSet(block.exerciseId, set.id)}
+                    activeOpacity={0.6}
                   >
-                    <Text style={styles.doneBtnText}>✓</Text>
+                    <Text style={styles.checkBtnText}>✓</Text>
                   </TouchableOpacity>
                 ) : (
-                  <LinearGradient
-                    colors={Gradients.success}
-                    style={styles.doneBadge}
-                  >
-                    <Text style={styles.doneBadgeText}>✓</Text>
-                  </LinearGradient>
+                  <View style={styles.checkDone}>
+                    <Text style={styles.checkDoneText}>✓</Text>
+                  </View>
                 )}
               </View>
             ))}
 
-            <TouchableOpacity style={styles.addSetBtn} onPress={() => addSet(block.exerciseId)}>
-              <Text style={styles.addSetBtnText}>+ Add Set</Text>
+            {/* Add set */}
+            <TouchableOpacity style={styles.addSetBtn} onPress={() => addSet(block.exerciseId)} activeOpacity={0.6}>
+              <Text style={styles.addSetText}>+ Add Set</Text>
             </TouchableOpacity>
-          </Card>
+          </View>
         ))}
       </ScrollView>
 
-      {/* Floating add exercise button */}
-      <View style={styles.fabContainer}>
-        <GradientButton
-          title="Add Exercise"
-          icon="+"
+      {/* ── FAB ────────────────────────────────────────────────────────── */}
+      <View style={styles.fabWrap}>
+        <TouchableOpacity
           onPress={() => setExerciseModalOpen(true)}
-          variant="accent"
-          size="md"
-        />
+          activeOpacity={0.85}
+          style={styles.fab}
+        >
+          <LinearGradient colors={Gradients.accent} style={styles.fabGrad}>
+            <Text style={styles.fabIcon}>+</Text>
+            <Text style={styles.fabLabel}>Add Exercise</Text>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
 
-      {/* Exercise picker modal */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/*  Exercise Catalog Picker Modal                                 */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
       <Modal visible={exerciseModalOpen} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={styles.modal} edges={['top']}>
+          {/* Header */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Pick Exercise</Text>
-            <TouchableOpacity onPress={() => setExerciseModalOpen(false)}>
-              <Text style={styles.modalClose}>Done</Text>
+            <View>
+              <Text style={styles.modalTitle}>Add Exercise</Text>
+              <Text style={styles.modalSubtitle}>Browse 870+ exercises</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => { setExerciseModalOpen(false); setSearchQuery(''); setSelectedMuscle(null); }}
+              style={styles.modalDoneBtn}
+            >
+              <Text style={styles.modalDoneText}>Done</Text>
             </TouchableOpacity>
           </View>
-          {isLoadingExercises ? (
-            <View style={styles.modalState}>
-              <Text style={styles.modalStateText}>Loading exercises...</Text>
+
+          {/* Search bar */}
+          <View style={styles.searchWrap}>
+            <View style={styles.searchBar}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search exercises..."
+                placeholderTextColor={Colors.textDisabled}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                  <Text style={styles.searchClear}>✕</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          ) : exercisesError ? (
-            <View style={styles.modalState}>
-              <Text style={styles.modalStateTitle}>Could not load exercises</Text>
-              <Text style={styles.modalStateText}>{getUserFriendlyErrorMessage(exercisesError, 'Please try again.')}</Text>
+          </View>
+
+          {/* Muscle filter chips */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipsContent}
+            style={styles.chipsScroll}
+          >
+            <TouchableOpacity
+              style={[styles.chip, !selectedMuscle && styles.chipActive]}
+              onPress={() => setSelectedMuscle(null)}
+            >
+              <Text style={[styles.chipText, !selectedMuscle && styles.chipTextActive]}>All</Text>
+            </TouchableOpacity>
+            {availableMuscles.map((muscle) => (
+              <TouchableOpacity
+                key={muscle}
+                style={[styles.chip, selectedMuscle === muscle && styles.chipActive]}
+                onPress={() => setSelectedMuscle(selectedMuscle === muscle ? null : muscle)}
+              >
+                <Text style={[styles.chipText, selectedMuscle === muscle && styles.chipTextActive]}>
+                  {MUSCLE_EMOJI[muscle] ?? ''} {muscle.charAt(0).toUpperCase() + muscle.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Results count */}
+          {catalog && (
+            <View style={styles.resultsBar}>
+              <Text style={styles.resultsText}>
+                {filteredCatalog.length} exercise{filteredCatalog.length !== 1 ? 's' : ''}
+                {selectedMuscle ? ` · ${selectedMuscle}` : ''}
+              </Text>
+            </View>
+          )}
+
+          {/* Loading / Error / List */}
+          {isLoadingCatalog ? (
+            <View style={styles.stateWrap}>
+              <ActivityIndicator color={Colors.primary} size="large" />
+              <Text style={styles.stateText}>Loading exercises...</Text>
+            </View>
+          ) : catalogError ? (
+            <View style={styles.stateWrap}>
+              <Text style={{ fontSize: 48, marginBottom: Spacing.md }}>📡</Text>
+              <Text style={styles.stateTitle}>Could not load exercises</Text>
+              <Text style={styles.stateText}>{getUserFriendlyErrorMessage(catalogError)}</Text>
               <GradientButton
                 title="Try Again"
-                onPress={() => refetchExercises()}
+                onPress={() => refetchCatalog()}
                 variant="primary"
                 size="sm"
                 style={{ marginTop: Spacing.md }}
@@ -206,33 +395,63 @@ export default function ActiveWorkoutScreen() {
             </View>
           ) : (
             <FlatList
-              style={styles.exerciseList}
-              contentContainerStyle={allExercises?.length ? undefined : styles.modalState}
-              data={allExercises ?? []}
+              style={styles.catalogList}
+              contentContainerStyle={filteredCatalog.length ? { paddingBottom: 40 } : styles.stateWrap}
+              data={filteredCatalog}
               keyExtractor={(item) => item.id}
-              ListEmptyComponent={(
-                <View style={styles.modalState}>
-                  <Text style={styles.modalStateTitle}>No exercises available</Text>
-                  <Text style={styles.modalStateText}>The exercise database is empty right now.</Text>
+              initialNumToRender={15}
+              maxToRenderPerBatch={10}
+              windowSize={5}
+              ListEmptyComponent={
+                <View style={styles.stateWrap}>
+                  <Text style={{ fontSize: 48, marginBottom: Spacing.md }}>🔎</Text>
+                  <Text style={styles.stateTitle}>No exercises found</Text>
+                  <Text style={styles.stateText}>Try a different search or filter</Text>
                 </View>
-              )}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.exercisePickerRow}
-                  onPress={() => {
-                    addExercise(item.id, item.name);
-                    setExerciseModalOpen(false);
-                  }}
-                >
-                  <Text style={styles.exercisePickerName}>{item.name}</Text>
-                  <Badge
-                    label={item.primaryMuscle}
-                    color={Colors.primary}
-                    bgColor={Colors.primaryMuted}
-                  />
-                </TouchableOpacity>
-              )}
+              }
+              renderItem={({ item }) => {
+                const levelStyle = getLevelStyle(item.level);
+                return (
+                  <TouchableOpacity
+                    style={styles.catalogItem}
+                    onPress={() => handleSelectCatalogExercise(item)}
+                    activeOpacity={0.65}
+                    disabled={isSelectingExercise}
+                  >
+                    <Image
+                      source={{ uri: getCatalogImageUrl(item.id, 0) }}
+                      style={styles.catalogImg}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.catalogInfo}>
+                      <Text style={styles.catalogName} numberOfLines={2}>{item.name}</Text>
+                      <View style={styles.catalogBadges}>
+                        <Badge
+                          label={(item.primaryMuscles[0] ?? 'General').charAt(0).toUpperCase() + (item.primaryMuscles[0] ?? 'general').slice(1)}
+                          color={Colors.primary}
+                          bgColor={Colors.primaryMuted}
+                        />
+                        {item.equipment && (
+                          <Badge label={item.equipment} color={Colors.accent} bgColor={Colors.accentMuted} />
+                        )}
+                        <Badge label={item.level} color={levelStyle.color} bgColor={levelStyle.bg} />
+                      </View>
+                    </View>
+                    <Text style={styles.catalogChevron}>›</Text>
+                  </TouchableOpacity>
+                );
+              }}
             />
+          )}
+
+          {/* Selecting overlay */}
+          {isSelectingExercise && (
+            <View style={styles.overlay}>
+              <View style={styles.overlayBox}>
+                <ActivityIndicator color={Colors.primary} size="large" />
+                <Text style={styles.overlayText}>Adding exercise...</Text>
+              </View>
+            </View>
           )}
         </SafeAreaView>
       </Modal>
@@ -240,151 +459,208 @@ export default function ActiveWorkoutScreen() {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Styles
+// ═══════════════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
-  safe:            { flex: 1, backgroundColor: Colors.bg },
-  header:          {
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical:   Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  safe: { flex: 1, backgroundColor: Colors.bg },
+
+  // ── Finishing overlay ─────────────────────────────────────────────
+  finishingContainer: {
+    flex: 1, backgroundColor: Colors.bg,
+    alignItems: 'center', justifyContent: 'center', gap: Spacing.lg,
   },
-  discardBtn:      {
-    color:    Colors.error,
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
+  finishingText: {
+    fontSize: FontSize.md, color: Colors.textSecondary, fontWeight: FontWeight.medium,
   },
-  timerBox:        { alignItems: 'center' },
-  timer:           {
-    fontSize:     FontSize.xxl,
-    fontWeight:   FontWeight.black,
-    color:        Colors.primary,
-    fontVariant:  ['tabular-nums'],
-    letterSpacing: 2,
+
+  // ── Header ────────────────────────────────────────────────────────
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
-  workoutName:     { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
-  summaryBar:      {
-    alignItems:  'center',
-    paddingVertical: Spacing.sm,
-  },
-  list:            { flex: 1 },
-  exerciseBlock:   { margin: Spacing.md, marginBottom: 0 },
-  exerciseName:    {
-    fontSize:   FontSize.md,
-    fontWeight: FontWeight.bold,
-    color:      Colors.text,
-    marginBottom: Spacing.sm,
-    paddingTop: Spacing.xs,
-  },
-  setHeader:       {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           Spacing.sm,
-    marginBottom:  Spacing.xs,
-    paddingHorizontal: 2,
-  },
-  setHeaderText:   {
-    fontSize:      FontSize.xxs,
-    color:         Colors.textMuted,
-    fontWeight:    FontWeight.semibold,
-    textAlign:     'center',
-    letterSpacing: 1,
-  },
-  setRow:          {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           Spacing.sm,
-    marginVertical: 3,
-  },
-  setRowDone:      { opacity: 0.5 },
-  setNum:          {
-    width:     28,
-    fontSize:  FontSize.sm,
-    color:     Colors.textMuted,
-    textAlign: 'center',
-    fontWeight: FontWeight.semibold,
-  },
-  setInput:        {
-    flex:            1,
+  headerBtn: {
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: Colors.bgMuted,
-    borderRadius:    Radius.sm,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    color:           Colors.text,
-    fontSize:        FontSize.sm,
-    textAlign:       'center',
-    borderWidth:     1,
-    borderColor:     Colors.borderSubtle,
+    alignItems: 'center', justifyContent: 'center',
   },
-  setInputDone:    { borderColor: Colors.successMuted },
-  setX:            { color: Colors.textMuted, fontSize: FontSize.sm },
-  doneBtn:         {
+  discardIcon: { color: Colors.error, fontSize: FontSize.md, fontWeight: FontWeight.bold },
+  timerBox: { alignItems: 'center', flex: 1, marginHorizontal: Spacing.md },
+  timer: {
+    fontSize: FontSize.xxl, fontWeight: FontWeight.black, color: Colors.primary,
+    fontVariant: ['tabular-nums'], letterSpacing: 2,
+  },
+  workoutName: { fontSize: FontSize.xxs, color: Colors.textMuted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 1 },
+  finishBtn: { borderRadius: Radius.sm, overflow: 'hidden' },
+  finishBtnGrad: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm + 2, borderRadius: Radius.sm },
+  finishBtnText: { color: '#000', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+
+  // ── Summary bar ───────────────────────────────────────────────────
+  summaryBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: Spacing.md, gap: Spacing.md,
+    borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle,
+  },
+  summaryChip: { alignItems: 'center' },
+  summaryValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.text, fontVariant: ['tabular-nums'] },
+  summaryLabel: { fontSize: FontSize.xxs, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 1 },
+  summaryDivider: { width: 1, height: 28, backgroundColor: Colors.border },
+
+  // ── Exercise cards ────────────────────────────────────────────────
+  list: { flex: 1 },
+  exerciseCard: {
+    marginHorizontal: Spacing.md, marginTop: Spacing.md,
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  exHeaderRow: {
+    paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.sm,
+  },
+  exNameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  exAccent: { width: 3, height: 18, borderRadius: 2, backgroundColor: Colors.primary },
+  exName: {
+    fontSize: FontSize.md, fontWeight: FontWeight.bold, color: Colors.text,
+    flex: 1,
+  },
+
+  // ── Sets ──────────────────────────────────────────────────────────
+  setHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    paddingHorizontal: Spacing.md, marginBottom: Spacing.xs,
+  },
+  setHeaderCell: {
+    fontSize: FontSize.xxs, color: Colors.textMuted, fontWeight: FontWeight.semibold,
+    textAlign: 'center', letterSpacing: 1, textTransform: 'uppercase',
+  },
+  setRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    paddingHorizontal: Spacing.md, marginVertical: 2,
+  },
+  setRowDone: { opacity: 0.45 },
+  setNumBadge: {
+    width: 32, height: 28, borderRadius: Radius.xs,
     backgroundColor: Colors.bgMuted,
-    borderRadius:    Radius.sm,
-    width:           36,
-    height:          36,
-    alignItems:      'center',
-    justifyContent:  'center',
-    borderWidth:     1,
-    borderColor:     Colors.border,
+    alignItems: 'center', justifyContent: 'center',
   },
-  doneBtnText:     { color: Colors.text, fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  doneBadge:       {
-    width:        36,
-    height:       36,
-    alignItems:   'center',
-    justifyContent: 'center',
-    borderRadius: Radius.sm,
+  setNum: { fontSize: FontSize.xs, color: Colors.textMuted, fontWeight: FontWeight.bold },
+  setInput: {
+    flex: 1, backgroundColor: Colors.bgMuted, borderRadius: Radius.xs,
+    paddingVertical: Spacing.sm, paddingHorizontal: Spacing.sm,
+    color: Colors.text, fontSize: FontSize.sm, textAlign: 'center',
+    borderWidth: 1, borderColor: Colors.borderSubtle,
   },
-  doneBadgeText:   { color: Colors.bg, fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  addSetBtn:       { alignItems: 'center', paddingVertical: Spacing.sm },
-  addSetBtnText:   { color: Colors.primary, fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-  fabContainer:    {
-    position:     'absolute',
-    bottom:       Spacing.xxl,
-    left:         Spacing.lg,
-    right:        Spacing.lg,
+  setInputDone: { borderColor: 'rgba(0,230,118,0.2)' },
+  setX: { color: Colors.textDisabled, fontSize: FontSize.sm },
+  checkBtn: {
+    width: 40, height: 36, borderRadius: Radius.xs,
+    backgroundColor: Colors.bgMuted,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  checkBtnText: { color: Colors.text, fontSize: FontSize.md, fontWeight: FontWeight.bold },
+  checkDone: {
+    width: 40, height: 36, borderRadius: Radius.xs,
+    backgroundColor: Colors.success,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  checkDoneText: { color: '#000', fontSize: FontSize.md, fontWeight: FontWeight.bold },
+  addSetBtn: {
+    alignItems: 'center', paddingVertical: Spacing.sm + 2,
+    borderTopWidth: 1, borderTopColor: Colors.borderSubtle,
+    marginTop: Spacing.xs,
+  },
+  addSetText: { color: Colors.primary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold, letterSpacing: 0.3 },
+
+  // ── FAB ───────────────────────────────────────────────────────────
+  fabWrap: {
+    position: 'absolute', bottom: Spacing.xxl, left: Spacing.lg, right: Spacing.lg,
     ...Shadows.lg,
   },
-  modal:           { flex: 1, backgroundColor: Colors.bg },
-  exerciseList:    { flex: 1 },
-  modalHeader:     {
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'center',
-    padding:        Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  fab: { borderRadius: Radius.md, overflow: 'hidden' },
+  fabGrad: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: Spacing.md, gap: Spacing.sm,
   },
-  modalTitle:      { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: Colors.text },
-  modalClose:      { color: Colors.primary, fontWeight: FontWeight.semibold, fontSize: FontSize.md },
-  exercisePickerRow: {
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'center',
-    padding:        Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  fabIcon: { color: '#fff', fontSize: FontSize.xl, fontWeight: FontWeight.black },
+  fabLabel: { color: '#fff', fontSize: FontSize.md, fontWeight: FontWeight.bold, letterSpacing: 0.5 },
+
+  // ── Modal ─────────────────────────────────────────────────────────
+  modal: { flex: 1, backgroundColor: Colors.bg },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.lg,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
-  exercisePickerName: { fontSize: FontSize.md, color: Colors.text, fontWeight: FontWeight.medium },
-  modalState:      {
-    flex:           1,
-    alignItems:     'center',
-    justifyContent: 'center',
-    padding:        Spacing.xl,
+  modalTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: Colors.text },
+  modalSubtitle: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
+  modalDoneBtn: {
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    borderRadius: Radius.sm, backgroundColor: Colors.primaryMuted,
   },
-  modalStateTitle: {
-    fontSize:   FontSize.md,
-    color:      Colors.text,
-    fontWeight: FontWeight.semibold,
-    textAlign:  'center',
+  modalDoneText: { color: Colors.primary, fontWeight: FontWeight.semibold, fontSize: FontSize.sm },
+
+  // ── Search ────────────────────────────────────────────────────────
+  searchWrap: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.sm },
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: Colors.bgMuted, borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md, height: 44,
+    borderWidth: 1, borderColor: Colors.borderSubtle,
   },
-  modalStateText:  {
-    fontSize:   FontSize.sm,
-    color:      Colors.textMuted,
-    textAlign:  'center',
-    marginTop:  Spacing.xs,
+  searchIcon: { fontSize: FontSize.sm, marginRight: Spacing.sm },
+  searchInput: { flex: 1, color: Colors.text, fontSize: FontSize.sm, paddingVertical: 0 },
+  searchClear: { color: Colors.textMuted, fontSize: FontSize.sm, paddingLeft: Spacing.sm },
+
+  // ── Chips ─────────────────────────────────────────────────────────
+  chipsScroll: { maxHeight: 40 },
+  chipsContent: { paddingHorizontal: Spacing.lg, gap: Spacing.xs, alignItems: 'center' },
+  chip: {
+    paddingHorizontal: Spacing.md, paddingVertical: 6,
+    borderRadius: Radius.full, backgroundColor: Colors.bgMuted,
+    borderWidth: 1, borderColor: Colors.borderSubtle,
   },
+  chipActive: { backgroundColor: Colors.primaryMuted, borderColor: Colors.primary },
+  chipText: { fontSize: FontSize.xxs, color: Colors.textMuted, fontWeight: FontWeight.medium },
+  chipTextActive: { color: Colors.primary, fontWeight: FontWeight.semibold },
+
+  // ── Results ───────────────────────────────────────────────────────
+  resultsBar: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
+  resultsText: { fontSize: FontSize.xxs, color: Colors.textMuted, fontWeight: FontWeight.medium, letterSpacing: 0.3 },
+
+  // ── Catalog list ──────────────────────────────────────────────────
+  catalogList: { flex: 1 },
+  catalogItem: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+    borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle,
+    gap: Spacing.md,
+  },
+  catalogImg: {
+    width: 56, height: 56, borderRadius: Radius.sm, backgroundColor: Colors.bgMuted,
+  },
+  catalogInfo: { flex: 1, gap: 4 },
+  catalogName: { fontSize: FontSize.sm, color: Colors.text, fontWeight: FontWeight.semibold },
+  catalogBadges: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
+  catalogChevron: { fontSize: FontSize.xl, color: Colors.textDisabled },
+
+  // ── States ────────────────────────────────────────────────────────
+  stateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
+  stateTitle: { fontSize: FontSize.md, color: Colors.text, fontWeight: FontWeight.semibold, textAlign: 'center' },
+  stateText: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.xs },
+
+  // ── Overlay ───────────────────────────────────────────────────────
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: Colors.bgOverlay,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  overlayBox: {
+    backgroundColor: Colors.bgCard, borderRadius: Radius.lg,
+    padding: Spacing.xl, alignItems: 'center', gap: Spacing.md,
+    borderWidth: 1, borderColor: Colors.border,
+    ...Shadows.lg,
+  },
+  overlayText: { fontSize: FontSize.sm, color: Colors.text, fontWeight: FontWeight.medium },
 });
