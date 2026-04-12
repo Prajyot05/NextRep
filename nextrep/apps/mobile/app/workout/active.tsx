@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActiveWorkoutStore } from '../../src/store/workoutStore';
 import { useSyncStore } from '../../src/store/syncStore';
-import { api } from '../../src/api/client';
+import { api, getUserFriendlyErrorMessage } from '../../src/api/client';
 import { Colors, Spacing, Radius, FontSize, FontWeight, Gradients, Shadows } from '../../src/theme';
 import { Card, Badge, GradientButton } from '../../src/components/ui';
 
@@ -40,9 +40,10 @@ export default function ActiveWorkoutScreen() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  const { data: allExercises } = useQuery({
+  const { data: allExercises, isLoading: isLoadingExercises, error: exercisesError, refetch: refetchExercises } = useQuery({
     queryKey: ['exercises'],
     queryFn:  () => api.exercises.list(),
+    enabled: exerciseModalOpen,
   });
 
   const finishMutation = useMutation({
@@ -187,26 +188,52 @@ export default function ActiveWorkoutScreen() {
               <Text style={styles.modalClose}>Done</Text>
             </TouchableOpacity>
           </View>
-          <FlatList
-            data={allExercises ?? []}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.exercisePickerRow}
-                onPress={() => {
-                  addExercise(item.id, item.name);
-                  setExerciseModalOpen(false);
-                }}
-              >
-                <Text style={styles.exercisePickerName}>{item.name}</Text>
-                <Badge
-                  label={item.primaryMuscle}
-                  color={Colors.primary}
-                  bgColor={Colors.primaryMuted}
-                />
-              </TouchableOpacity>
-            )}
-          />
+          {isLoadingExercises ? (
+            <View style={styles.modalState}>
+              <Text style={styles.modalStateText}>Loading exercises...</Text>
+            </View>
+          ) : exercisesError ? (
+            <View style={styles.modalState}>
+              <Text style={styles.modalStateTitle}>Could not load exercises</Text>
+              <Text style={styles.modalStateText}>{getUserFriendlyErrorMessage(exercisesError, 'Please try again.')}</Text>
+              <GradientButton
+                title="Try Again"
+                onPress={() => refetchExercises()}
+                variant="primary"
+                size="sm"
+                style={{ marginTop: Spacing.md }}
+              />
+            </View>
+          ) : (
+            <FlatList
+              style={styles.exerciseList}
+              contentContainerStyle={allExercises?.length ? undefined : styles.modalState}
+              data={allExercises ?? []}
+              keyExtractor={(item) => item.id}
+              ListEmptyComponent={(
+                <View style={styles.modalState}>
+                  <Text style={styles.modalStateTitle}>No exercises available</Text>
+                  <Text style={styles.modalStateText}>The exercise database is empty right now.</Text>
+                </View>
+              )}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.exercisePickerRow}
+                  onPress={() => {
+                    addExercise(item.id, item.name);
+                    setExerciseModalOpen(false);
+                  }}
+                >
+                  <Text style={styles.exercisePickerName}>{item.name}</Text>
+                  <Badge
+                    label={item.primaryMuscle}
+                    color={Colors.primary}
+                    bgColor={Colors.primaryMuted}
+                  />
+                </TouchableOpacity>
+              )}
+            />
+          )}
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -316,12 +343,13 @@ const styles = StyleSheet.create({
   addSetBtnText:   { color: Colors.primary, fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   fabContainer:    {
     position:     'absolute',
-    bottom:       Spacing.xl,
+    bottom:       Spacing.xxl,
     left:         Spacing.lg,
     right:        Spacing.lg,
     ...Shadows.lg,
   },
   modal:           { flex: 1, backgroundColor: Colors.bg },
+  exerciseList:    { flex: 1 },
   modalHeader:     {
     flexDirection:  'row',
     justifyContent: 'space-between',
@@ -341,4 +369,22 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   exercisePickerName: { fontSize: FontSize.md, color: Colors.text, fontWeight: FontWeight.medium },
+  modalState:      {
+    flex:           1,
+    alignItems:     'center',
+    justifyContent: 'center',
+    padding:        Spacing.xl,
+  },
+  modalStateTitle: {
+    fontSize:   FontSize.md,
+    color:      Colors.text,
+    fontWeight: FontWeight.semibold,
+    textAlign:  'center',
+  },
+  modalStateText:  {
+    fontSize:   FontSize.sm,
+    color:      Colors.textMuted,
+    textAlign:  'center',
+    marginTop:  Spacing.xs,
+  },
 });

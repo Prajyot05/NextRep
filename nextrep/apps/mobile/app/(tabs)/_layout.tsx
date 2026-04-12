@@ -2,11 +2,13 @@ import { Tabs, router } from 'expo-router';
 import { useEffect } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/store/authStore';
 import { Colors, Shadows, Spacing, Radius, FontSize } from '../../src/theme';
 
 export default function TabsLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!isAuthenticated) router.replace('/(auth)/login');
@@ -18,16 +20,16 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarStyle: {
           position:        'absolute',
-          bottom:          Platform.OS === 'ios' ? 24 : 16,
+          // bottom:          Math.max(insets.bottom + 12, 16),
           left:            Spacing.lg,
           right:           Spacing.lg,
-          height:          64,
+          height:          64 + insets.bottom,
           borderRadius:    Radius.xl,
           backgroundColor: 'rgba(26, 26, 36, 0.92)',
           borderTopWidth:  0,
           borderWidth:     1,
           borderColor:     Colors.border,
-          paddingBottom:   Platform.OS === 'ios' ? 0 : 8,
+          paddingBottom:   Math.max(insets.bottom, 8),
           paddingTop:      8,
           ...Shadows.lg,
         },
