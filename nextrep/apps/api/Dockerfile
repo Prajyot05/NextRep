@@ -26,7 +26,8 @@ RUN corepack enable && corepack prepare pnpm@9.15.3 --activate
 
 # Copy only what's needed
 COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/package.json ./
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
 
