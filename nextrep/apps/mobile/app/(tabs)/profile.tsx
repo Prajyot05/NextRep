@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   email: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: Spacing.xs },
   quickStatsRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
-    backgroundColor: Colors.bgCard, borderRadius: Radius.lg, paddingVertical: Spacing.md,
+    backgroundColor: Colors.bgCard, borderRadius: Radius.xxl, paddingVertical: Spacing.lg,
     marginBottom: Spacing.lg, borderWidth: 1, borderColor: Colors.border,
   },
   quickStat: { alignItems: 'center' },

@@ -86,7 +86,7 @@ export function GradientButton({
 
 const styles = StyleSheet.create({
   gradient: {
-    borderRadius:    Radius.md,
+    borderRadius:    Radius.full,
     paddingHorizontal: Spacing.xl,
     alignItems:      'center',
     justifyContent:  'center',
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     alignItems:    'center',
     borderWidth:   1,
     borderColor:   Colors.border,
-    borderRadius:  Radius.md,
+    borderRadius:  Radius.full,
     paddingHorizontal: Spacing.xl,
   },
   ghostText: {

@@ -32,13 +32,13 @@ const styles = StyleSheet.create({
   card: {
     flex:         1,
     minWidth:     '45%' as any,
-    borderRadius: Radius.md,
+    borderRadius: Radius.xl,
     borderWidth:  1,
     borderColor:  Colors.border,
     overflow:     'hidden',
   },
   inner: {
-    padding:    Spacing.md,
+    padding:    Spacing.lg,
     alignItems: 'center',
   },
   icon: {

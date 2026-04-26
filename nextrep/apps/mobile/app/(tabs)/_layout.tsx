@@ -13,18 +13,21 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarStyle: {
           position:        'absolute',
-          // bottom:          Math.max(insets.bottom + 12, 16),
-          left:            Spacing.lg,
-          right:           Spacing.lg,
-          height:          64 + insets.bottom,
-          borderRadius:    Radius.xl,
-          backgroundColor: 'rgba(26, 26, 36, 0.92)',
+          left:            Spacing.xl,
+          right:           Spacing.xl,
+          height:          64 + Math.max(insets.bottom, 8),
+          borderRadius:    Radius.full,
+          backgroundColor: 'rgba(28, 28, 30, 0.95)',
           borderTopWidth:  0,
           borderWidth:     1,
-          borderColor:     Colors.border,
+          borderColor:     Colors.borderSubtle,
           paddingBottom:   Math.max(insets.bottom, 8),
           paddingTop:      8,
-          ...Shadows.lg,
+          shadowColor:     '#000',
+          shadowOffset:    { width: 0, height: 10 },
+          shadowOpacity:   0.8,
+          shadowRadius:    20,
+          elevation:       10,
         },
         tabBarActiveTintColor:   Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
@@ -62,7 +65,7 @@ export default function TabsLayout() {
           title: 'Start',
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.startIcon, focused && styles.startIconActive]}>
-              <Ionicons name="add" size={26} color={focused ? Colors.bg : color} />
+              <Ionicons name="add" size={24} color={focused ? '#000' : Colors.text} />
             </View>
           ),
           tabBarLabel: () => null,
@@ -82,7 +85,7 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'list' : 'list-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -92,16 +95,15 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   startIcon: {
-    width:           44,
-    height:          44,
-    borderRadius:    22,
+    width:           40,
+    height:          40,
+    borderRadius:    20,
     backgroundColor: Colors.bgMuted,
     alignItems:      'center',
     justifyContent:  'center',
     marginBottom:    4,
   },
   startIconActive: {
-    backgroundColor: Colors.primary,
-    ...Shadows.glow(Colors.primary),
+    backgroundColor: Colors.text,
   },
 });

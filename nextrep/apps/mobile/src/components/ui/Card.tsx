@@ -40,8 +40,8 @@ export function Card({ children, style, accentColor, gradientAccent, onPress }: 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.bgCard,
-    borderRadius:    Radius.md,
-    padding:         Spacing.md,
+    borderRadius:    Radius.xxl,
+    padding:         Spacing.lg,
     borderWidth:     1,
     borderColor:     Colors.border,
     overflow:        'hidden',
@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
     top:          0,
     left:         0,
     right:        0,
-    height:       3,
-    borderTopLeftRadius:  Radius.md,
-    borderTopRightRadius: Radius.md,
+    height:       4,
+    borderTopLeftRadius:  Radius.xxl,
+    borderTopRightRadius: Radius.xxl,
   },
 });

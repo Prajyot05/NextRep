@@ -5,50 +5,50 @@ import { Platform } from 'react-native';
 
 // ── Colors ────────────────────────────────────────────────────────────────
 export const Colors = {
-  // Brand — cyan-to-blue primary
-  primary:       '#00D4FF',
-  primaryLight:  '#5CE1FF',
-  primaryDark:   '#0099CC',
-  primaryMuted:  'rgba(0, 212, 255, 0.15)',
+  // Brand — vivid blue
+  primary:       '#0A84FF',
+  primaryLight:  '#5AC8FA',
+  primaryDark:   '#0059B3',
+  primaryMuted:  'rgba(10, 132, 255, 0.15)',
 
-  // Accent — ember-orange for energy & CTAs
-  accent:        '#FF6B35',
-  accentLight:   '#FF8A5C',
-  accentMuted:   'rgba(255, 107, 53, 0.15)',
+  // Accent — energetic orange/yellow
+  accent:        '#FF9F0A',
+  accentLight:   '#FFD60A',
+  accentMuted:   'rgba(255, 159, 10, 0.15)',
 
   // Semantic
-  success:       '#00E676',
-  successMuted:  'rgba(0, 230, 118, 0.15)',
-  warning:       '#FFD600',
-  warningMuted:  'rgba(255, 214, 0, 0.15)',
-  error:         '#FF5252',
-  errorMuted:    'rgba(255, 82, 82, 0.15)',
+  success:       '#30D158',
+  successMuted:  'rgba(48, 209, 88, 0.15)',
+  warning:       '#FFD60A',
+  warningMuted:  'rgba(255, 214, 10, 0.15)',
+  error:         '#FF453A',
+  errorMuted:    'rgba(255, 69, 58, 0.15)',
 
-  // Streak
-  streak:        '#FF6B35',
-  streakGold:    '#FFD700',
-  streakMuted:   'rgba(255, 107, 53, 0.12)',
+  // Streak (legacy mapping to accent)
+  streak:        '#FF9F0A',
+  streakGold:    '#FFD60A',
+  streakMuted:   'rgba(255, 159, 10, 0.12)',
 
-  // Background — deep obsidian
-  bg:            '#0A0A0F',
-  bgElevated:    '#12121A',
-  bgCard:        '#1A1A24',
-  bgCardHover:   '#22222E',
-  bgMuted:       '#2A2A36',
-  bgOverlay:     'rgba(0, 0, 0, 0.75)',
+  // Background — true black
+  bg:            '#000000',
+  bgElevated:    '#1C1C1E',
+  bgCard:        '#1C1C1E',
+  bgCardHover:   '#2C2C2E',
+  bgMuted:       '#2C2C2E',
+  bgOverlay:     'rgba(0, 0, 0, 0.8)',
 
   // Text
-  text:          '#F0F0F5',
-  textSecondary: '#B0B0C0',
-  textMuted:     '#6E6E82',
-  textDisabled:  '#3E3E52',
+  text:          '#FFFFFF',
+  textSecondary: '#EBEBF5',
+  textMuted:     'rgba(235, 235, 245, 0.6)',
+  textDisabled:  'rgba(235, 235, 245, 0.3)',
 
   // Border
-  border:        'rgba(255, 255, 255, 0.08)',
-  borderSubtle:  'rgba(255, 255, 255, 0.04)',
-  borderFocus:   '#00D4FF',
+  border:        'rgba(255, 255, 255, 0.1)',
+  borderSubtle:  'rgba(255, 255, 255, 0.05)',
+  borderFocus:   '#0A84FF',
 
-  // Muscle group colors (for charts)
+  // Muscle group colors (for charts - slightly muted for dark mode)
   muscle: {
     CHEST:       '#FF6B6B',
     BACK:        '#4ECDC4',
@@ -70,15 +70,17 @@ export const Colors = {
 // ── Gradients ─────────────────────────────────────────────────────────────
 export type GradientTuple = readonly [string, string, ...string[]];
 export const Gradients: Record<string, GradientTuple> = {
-  primary:       ['#00D4FF', '#0066FF'],
-  primarySoft:   ['rgba(0,212,255,0.2)', 'rgba(0,102,255,0.05)'],
-  accent:        ['#FF6B35', '#FF3D00'],
-  accentSoft:    ['rgba(255,107,53,0.2)', 'rgba(255,61,0,0.05)'],
-  streak:        ['#FF6B35', '#FFD700'],
-  success:       ['#00E676', '#00C853'],
+  primary:       ['#0A84FF', '#0059B3'],
+  primarySoft:   ['rgba(10,132,255,0.2)', 'rgba(10,132,255,0.05)'],
+  accent:        ['#FF9F0A', '#FFD60A'],
+  accentSoft:    ['rgba(255,159,10,0.2)', 'rgba(255,214,10,0.05)'],
+  streak:        ['#FF9F0A', '#FFD60A'],
+  success:       ['#30D158', '#249E43'],
   cardShine:     ['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.01)'],
-  hero:          ['#0A0A0F', '#12121A', '#1A1A24'],
-  dark:          ['#12121A', '#0A0A0F'],
+  hero:          ['#000000', '#1C1C1E'],
+  dark:          ['#1C1C1E', '#000000'],
+  trainingDay:   ['#FF9F0A', '#FF7A00'],
+  restDay:       ['#5E5CE6', '#BF5AF2'],
 };
 
 // ── Spacing ───────────────────────────────────────────────────────────────
@@ -94,11 +96,12 @@ export const Spacing = {
 
 // ── Radius ────────────────────────────────────────────────────────────────
 export const Radius = {
-  xs:   0,
-  sm:   2,
-  md:   4,
-  lg:   8,
-  xl:   12,
+  xs:   4,
+  sm:   8,
+  md:   12,
+  lg:   16,
+  xl:   24,
+  xxl:  32,
   full: 9999,
 } as const;
 
