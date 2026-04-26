@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../src/store/authStore';
+import { useSettingsStore } from '../src/store/settingsStore';
 import { getAccessToken } from '../src/api/client';
 import { Colors } from '../src/theme';
 
@@ -34,6 +35,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
         if (token) {
           useAuthStore.getState().setUser({ id: '', email: '', displayName: '' });
         }
+        await useSettingsStore.getState().loadSettings();
       } catch {}
       setIsReady(true);
       await SplashScreen.hideAsync();
@@ -84,6 +86,8 @@ export default function RootLayout() {
               <Stack.Screen name="template/new" options={{ presentation: 'card', animation: 'slide_from_bottom' }} />
               <Stack.Screen name="template/[id]" options={{ presentation: 'card' }} />
               <Stack.Screen name="body/log" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="body/index" options={{ presentation: 'card' }} />
+              <Stack.Screen name="settings" options={{ presentation: 'card', animation: 'slide_from_right' }} />
             </Stack>
           </AuthGate>
         </QueryClientProvider>

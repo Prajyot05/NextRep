@@ -41,7 +41,7 @@ export async function getStrengthCurve(userId: string, exerciseId: string, days 
     ORDER BY date
   `);
   return result.rows.map((r: any) => ({
-    date:      r.date,
+    date:      new Date(r.date).toISOString(),
     weight:    r.max_weight !== null ? Number(r.max_weight) : null,
     estimated1rm: r.max_1rm !== null ? Number(r.max_1rm) : null,
   }));
@@ -61,7 +61,7 @@ export async function getVolumeTrend(userId: string, weeks = 12) {
     ORDER BY week
   `);
   return result.rows.map((r: any) => ({
-    week:   r.week,
+    week:   new Date(r.week).toISOString(),
     volume: Number(r.volume),
   }));
 }
@@ -103,7 +103,7 @@ export async function getMuscleVolume(userId: string, weeks = 8) {
   `);
   return result.rows.map((r: any) => ({
     muscleGroup: r.muscle_group,
-    week:        r.week,
+    week:        new Date(r.week).toISOString(),
     tonnage:     Number(r.tonnage),
   }));
 }
@@ -143,7 +143,7 @@ export async function getDurationTrend(userId: string, weeks = 12) {
     ORDER BY date
   `);
   return result.rows.map((r: any) => ({
-    date:     r.date,
+    date:     new Date(r.date).toISOString(),
     duration: Number(r.duration_minutes),
   }));
 }
@@ -169,6 +169,6 @@ export async function getRecordsBoard(userId: string) {
     muscleGroup:  r.muscle_group,
     recordType:   r.record_type,
     value:        Number(r.value),
-    achievedAt:   r.achieved_at,
+    achievedAt:   new Date(r.achieved_at).toISOString(),
   }));
 }

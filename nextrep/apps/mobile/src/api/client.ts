@@ -271,6 +271,7 @@ export const api = {
   workouts: {
     list: (page = 1, limit = 20) => apiFetch<any>(`/workouts?page=${page}&limit=${limit}`),
     get: (id: string) => apiFetch<any>(`/workouts/${id}`),
+    summary: (id: string) => apiFetch<any>(`/workouts/${id}/summary`),
     create: (body: any) => apiFetch<any>('/workouts', { method: 'POST', body: JSON.stringify(body) }),
     sync: (sessions: any[]) => apiFetch<any>('/workouts/sync', { method: 'POST', body: JSON.stringify({ sessions }) }),
     remove: (id: string) => apiFetch<void>(`/workouts/${id}`, { method: 'DELETE' }),

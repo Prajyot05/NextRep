@@ -12,10 +12,14 @@ export function SectionHeader({ title, action, onAction }: SectionHeaderProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
-      {action && onAction && (
-        <TouchableOpacity onPress={onAction} hitSlop={8}>
-          <Text style={styles.action}>{action}</Text>
-        </TouchableOpacity>
+      {action && (
+        onAction ? (
+          <TouchableOpacity onPress={onAction} hitSlop={8}>
+            <Text style={styles.action}>{action}</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.actionLabel}>{action}</Text>
+        )
       )}
     </View>
   );
@@ -39,5 +43,10 @@ const styles = StyleSheet.create({
     fontSize:   FontSize.sm,
     color:      Colors.primary,
     fontWeight: FontWeight.semibold,
+  },
+  actionLabel: {
+    fontSize:   FontSize.xs,
+    color:      Colors.textMuted,
+    fontWeight: FontWeight.medium,
   },
 });

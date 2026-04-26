@@ -118,22 +118,71 @@ export async function deleteSession(userId: string, sessionId: string) {
 }
 
 export async function getCalendar(userId: string) {
-  // Returns { "2026-03-07": ["CHEST","TRICEPS"] }
+  // Returns rich calendar data with session + exercise + set details
   const rows = await db.execute(
     sql`
       SELECT
         ws.started_at::date::text AS date,
-        array_agg(DISTINCT e.primary_muscle) AS muscles,
-        MIN(ws.id) AS session_id
+        COALESCE(json_agg(DISTINCT e.primary_muscle) FILTER (WHERE e.primary_muscle IS NOT NULL), '[]'::json) AS muscles,
+        ws.id AS session_id,
+        ws.name AS session_name,
+        ws.total_volume_kg,
+        ws.total_sets,
+        ws.duration_seconds
       FROM workout_sessions ws
       JOIN workout_sets s ON s.session_id = ws.id
       JOIN exercises e ON e.id = s.exercise_id
       WHERE ws.user_id = ${userId}
         AND ws.is_deleted = false
         AND ws.started_at >= now() - INTERVAL '6 months'
-      GROUP BY ws.started_at::date
+      GROUP BY ws.started_at::date, ws.id
       ORDER BY ws.started_at::date
     `,
   );
   return rows.rows;
+}
+
+export async function getSessionSummary(userId: string, sessionId: string) {
+  // Returns a compact workout summary with exercises + sets for calendar popup
+  const session = await db.query.workoutSessions.findFirst({
+    where: and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId), eq(workoutSessions.isDeleted, false)),
+    with: {
+      sets: {
+        orderBy: [workoutSets.setNumber],
+        with: { exercise: true },
+      },
+    },
+  });
+  if (!session) return null;
+
+  // Group sets by exercise
+  const exerciseMap: Record<string, { name: string; primaryMuscle: string; sets: Array<{ setNumber: number; weightKg: number | null; reps: number | null; type: string; isPr: boolean }> }> = {};
+  for (const s of session.sets) {
+    if (!exerciseMap[s.exerciseId]) {
+      exerciseMap[s.exerciseId] = {
+        name: s.exercise?.name ?? 'Unknown',
+        primaryMuscle: s.exercise?.primaryMuscle ?? '',
+        sets: [],
+      };
+    }
+    exerciseMap[s.exerciseId].sets.push({
+      setNumber: s.setNumber,
+      weightKg: s.weightKg,
+      reps: s.reps,
+      type: s.type,
+      isPr: s.isPr ?? false,
+    });
+  }
+
+  return {
+    id: session.id,
+    name: session.name,
+    startedAt: session.startedAt,
+    durationSeconds: session.durationSeconds,
+    totalVolumeKg: session.totalVolumeKg,
+    totalSets: session.totalSets,
+    notes: session.notes,
+    rating: session.rating,
+    exercises: Object.values(exerciseMap),
+  };
 }

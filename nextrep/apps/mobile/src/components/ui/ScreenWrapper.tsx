@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet, ViewStyle } from 'react-native';
+import { View, ScrollView, StyleSheet, ViewStyle, RefreshControl } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 import { Colors, Spacing } from '../../theme';
 
@@ -9,6 +9,8 @@ interface ScreenWrapperProps {
   edges?: Edge[];
   style?: ViewStyle;
   paddingBottom?: number;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }
 
 export function ScreenWrapper({
@@ -17,6 +19,8 @@ export function ScreenWrapper({
   edges = ['top'],
   style,
   paddingBottom = 100,
+  onRefresh,
+  refreshing = false,
 }: ScreenWrapperProps) {
   return (
     <SafeAreaView style={styles.safe} edges={edges}>
@@ -26,6 +30,16 @@ export function ScreenWrapper({
           contentContainerStyle={[styles.content, { paddingBottom }, style]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={Colors.primary}
+                colors={[Colors.primary]}
+              />
+            ) : undefined
+          }
         >
           {children}
         </ScrollView>

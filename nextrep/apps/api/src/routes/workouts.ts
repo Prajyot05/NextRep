@@ -7,6 +7,7 @@ import {
   listSessions,
   deleteSession,
   getCalendar,
+  getSessionSummary,
 } from '../services/workoutService';
 import { sendSuccess, sendError } from '../utils/errors';
 
@@ -23,6 +24,14 @@ export async function workoutRoutes(app: FastifyInstance) {
     const { year, month } = req.query as Record<string, string>;
     const result = await getCalendar(req.userId!);
     return sendSuccess(reply, result);
+  });
+
+  // GET /workouts/:id/summary (lightweight for calendar popup)
+  app.get('/workouts/:id/summary', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const summary = await getSessionSummary(req.userId!, id);
+    if (!summary) return sendError(reply, 404, 'Workout not found', 'NOT_FOUND');
+    return sendSuccess(reply, summary);
   });
 
   // GET /workouts/:id

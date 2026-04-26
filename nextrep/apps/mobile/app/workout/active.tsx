@@ -17,6 +17,9 @@ import {
 } from '../../src/api/exerciseApi';
 import { Colors, Spacing, Radius, FontSize, FontWeight, Gradients, Shadows } from '../../src/theme';
 import { Badge, GradientButton } from '../../src/components/ui';
+import { RestTimerOverlay } from '../../src/components/workout/RestTimerOverlay';
+import { useSettingsStore } from '../../src/store/settingsStore';
+import * as Haptics from 'expo-haptics';
 
 function formatTime(seconds: number) {
   const h = Math.floor(seconds / 3600);
@@ -61,12 +64,15 @@ export default function ActiveWorkoutScreen() {
 
   const { enqueue } = useSyncStore();
   const queryClient  = useQueryClient();
+  const autoStartTimer = useSettingsStore(s => s.autoStartTimer);
+  const hapticEnabled = useSettingsStore(s => s.hapticEnabled);
 
   const [exerciseModalOpen, setExerciseModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [isSelectingExercise, setIsSelectingExercise] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [showRestTimer, setShowRestTimer] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Only tick when workout is active and not finishing
@@ -262,7 +268,11 @@ export default function ActiveWorkoutScreen() {
                 {!set.isCompleted ? (
                   <TouchableOpacity
                     style={styles.checkBtn}
-                    onPress={() => completeSet(block.exerciseId, set.id)}
+                    onPress={() => {
+                      completeSet(block.exerciseId, set.id);
+                      if (hapticEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      if (autoStartTimer) setShowRestTimer(true);
+                    }}
                     activeOpacity={0.6}
                   >
                     <Text style={styles.checkBtnText}>✓</Text>
@@ -455,6 +465,9 @@ export default function ActiveWorkoutScreen() {
           )}
         </SafeAreaView>
       </Modal>
+
+      {/* Rest Timer Overlay */}
+      <RestTimerOverlay visible={showRestTimer} onDismiss={() => setShowRestTimer(false)} />
     </SafeAreaView>
   );
 }

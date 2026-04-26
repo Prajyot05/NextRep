@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -6,25 +7,66 @@ import { api } from '../../src/api/client';
 import { useAuthStore } from '../../src/store/authStore';
 import { Colors, Spacing, Radius, FontSize, FontWeight, Gradients, Shadows } from '../../src/theme';
 import { ScreenWrapper, StatCard, Card, GradientButton, SectionHeader } from '../../src/components/ui';
+import { SyncBanner } from '../../src/components/sync/SyncBanner';
+import { useSyncStore } from '../../src/store/syncStore';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
-  const { data: overview, isLoading } = useQuery({
+  const queryClient = useQueryClient();
+
+  const { data: overview, isLoading, refetch: refetchOverview, isRefetching: isRefetchingOverview } = useQuery({
     queryKey: ['analytics', 'overview'],
     queryFn:  api.analytics.overview,
   });
-  const { data: streak } = useQuery({
+  const { data: streak, refetch: refetchStreak, isRefetching: isRefetchingStreak } = useQuery({
     queryKey: ['streak'],
     queryFn:  api.streaks.get,
   });
 
+  const isRefreshing = isRefetchingOverview || isRefetchingStreak;
+  const onRefresh = React.useCallback(() => {
+    refetchOverview();
+    refetchStreak();
+  }, [refetchOverview, refetchStreak]);
+
+  const { queue, isSyncing, setSyncing, dequeue, incrementAttempts } = useSyncStore();
+
+  const handleSync = async () => {
+    if (queue.length === 0 || isSyncing) return;
+    setSyncing(true);
+    
+    try {
+      const sessions = queue.map(q => q.payload);
+      await api.workouts.sync(sessions);
+      
+      for (const item of queue) {
+        dequeue(item.id);
+      }
+      queryClient.invalidateQueries({ queryKey: ['workouts'] });
+    } catch (err) {
+      console.error('Sync failed', err);
+      for (const item of queue) {
+        incrementAttempts(item.id);
+      }
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
-    <ScreenWrapper paddingBottom={120}>
+    <ScreenWrapper paddingBottom={120} onRefresh={onRefresh} refreshing={isRefreshing}>
       {/* Hero greeting */}
       <View style={styles.hero}>
         <Text style={styles.greeting}>Hey {user?.displayName ?? 'Athlete'}</Text>
         <Text style={styles.subGreeting}>Ready to crush it today? 💪</Text>
       </View>
+
+      <SyncBanner 
+        pendingCount={queue.length} 
+        isSyncing={isSyncing} 
+        onSync={handleSync} 
+      />
 
       {/* Streak card */}
       {streak && (
