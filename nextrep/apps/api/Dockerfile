@@ -15,6 +15,9 @@ RUN pnpm install --frozen-lockfile
 COPY packages/shared ./packages/shared
 COPY apps/api ./apps/api
 
+# Build shared as CommonJS for Node runtime compatibility
+RUN pnpm --filter @nextrep/shared exec tsc --project tsconfig.json --module commonjs --moduleResolution node
+
 RUN pnpm turbo run build --filter=@nextrep/api
 
 # ─── Prod image ───────────────────────────────────────────────────
@@ -30,6 +33,9 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
+
+# Point shared package to compiled JS in the container
+RUN node -e "const fs=require('fs');const p=require('./packages/shared/package.json');p.main='./dist/index.js';p.types='./dist/index.d.ts';p.exports={'.':'./dist/index.js'};fs.writeFileSync('./packages/shared/package.json', JSON.stringify(p, null, 2));"
 
 RUN pnpm install --prod --frozen-lockfile
 
