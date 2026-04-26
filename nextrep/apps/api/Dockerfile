@@ -25,7 +25,7 @@ ENV NODE_ENV=production
 RUN corepack enable && corepack prepare pnpm@9.15.3 --activate
 
 # Copy only what's needed
-COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/packages/shared ./packages/shared
@@ -37,4 +37,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD wget -qO- http://localhost:3000/health || exit 1
 
+WORKDIR /app/apps/api
 CMD ["node", "dist/index.js"]
