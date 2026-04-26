@@ -13,17 +13,12 @@ interface StatCardProps {
 
 export function StatCard({ label, value, icon, gradient }: StatCardProps) {
   return (
-    <View style={[styles.card, Shadows.sm]}>
-      <LinearGradient
-        colors={gradient ?? Gradients.primarySoft}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.inner}
-      >
+    <View style={[styles.card]}>
+      <View style={styles.inner}>
         {icon && <Text style={styles.icon}>{icon}</Text>}
         <Text style={styles.value}>{value}</Text>
         <Text style={styles.label}>{label}</Text>
-      </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -33,7 +28,7 @@ const styles = StyleSheet.create({
     flex:         1,
     minWidth:     '45%' as any,
     borderRadius: Radius.xl,
-    borderWidth:  1,
+    backgroundColor: Colors.bgCard,
     borderColor:  Colors.border,
     overflow:     'hidden',
   },

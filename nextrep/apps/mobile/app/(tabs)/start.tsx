@@ -62,22 +62,17 @@ export default function StartScreen() {
       )}
 
       {/* Quick start */}
-      <LinearGradient
-        colors={Gradients.accent}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.quickStart, Shadows.lg]}
-      >
+      <Card style={styles.quickStartCard}>
+        <View style={styles.quickStartTextCol}>
+          <Text style={styles.quickStartTitle}>Quick Start</Text>
+          <Text style={styles.quickStartSub}>No template — just lift</Text>
+        </View>
         <GradientButton
-          title="Quick Start"
-          icon="⚡"
-          variant="ghost"
+          title="START"
           onPress={handleStartEmpty}
-          size="lg"
           style={styles.quickStartBtn}
         />
-        <Text style={styles.quickStartSub}>No template — just start lifting</Text>
-      </LinearGradient>
+      </Card>
 
       {/* Templates */}
       {templates && templates.length > 0 && (
@@ -87,7 +82,6 @@ export default function StartScreen() {
             <Card
               key={t.id}
               style={styles.templateCard}
-              gradientAccent={Gradients.primary}
               onPress={() => handleStartFromTemplate(t)}
             >
               <View style={styles.templateHeader}>
@@ -131,20 +125,27 @@ const styles = StyleSheet.create({
     marginTop:    Spacing.xs,
     marginBottom: Spacing.xl,
   },
-  quickStart: {
-    borderRadius:  Radius.lg,
-    padding:       Spacing.xl,
-    marginBottom:  Spacing.md,
-    alignItems:    'center',
+  quickStartCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems:  'center',
+    marginBottom:  Spacing.lg,
+  },
+  quickStartTextCol: {
+    flex: 1,
+  },
+  quickStartTitle: {
+    fontSize: FontSize.lg,
+    color: Colors.text,
+    fontWeight: FontWeight.bold,
   },
   quickStartBtn: {
-    borderColor: 'rgba(255,255,255,0.3)',
-    minWidth:    200,
+    minWidth:    100,
   },
   quickStartSub: {
-    color:      'rgba(255,255,255,0.7)',
+    color:      Colors.textMuted,
     fontSize:   FontSize.sm,
-    marginTop:  Spacing.sm,
+    marginTop:  4,
   },
   templateCard: {
     marginBottom: Spacing.md,

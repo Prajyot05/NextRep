@@ -135,22 +135,33 @@ export default function HistoryScreen() {
                 )}
                 <Card
                   style={styles.card}
-                  gradientAccent={Gradients.primary}
                   onPress={() => router.push(`/workout/${item.id}`)}
                 >
                   <View style={styles.cardHeader}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.cardName}>{item.name}</Text>
-                      <Text style={styles.cardTime}>
-                        {new Date(item.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                      </Text>
+                      <Text style={styles.cardName}>{item.name} {new Date(item.startedAt).toLocaleDateString()}</Text>
+                      <Text style={styles.cardTime}>Tracked Workout</Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+                    <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textMuted} />
                   </View>
-                  <View style={styles.cardMeta}>
-                    <Badge label={formatDuration(item.durationSeconds ?? 0)} color={Colors.primary} bgColor={Colors.primaryMuted} />
-                    <Badge label={`${item.totalSets} sets`} color={Colors.accent} bgColor={Colors.accentMuted} />
-                    <Badge label={`${Math.round(item.totalVolumeKg ?? 0)} kg`} color={Colors.success} bgColor={Colors.successMuted} />
+                  
+                  <Text style={styles.cardDesc} numberOfLines={2}>
+                    {item.exercises?.map((e: any) => e.name).join(', ') || 'Various exercises logged in this session.'}
+                  </Text>
+                  
+                  <View style={styles.cardMetaRow}>
+                    <View style={styles.metaItem}>
+                      <Text style={styles.metaValue}>{item.totalSets || 0}</Text>
+                      <Text style={styles.metaLabel}>Sets Logged</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <Text style={styles.metaValue}>{formatDuration(item.durationSeconds ?? 0)}</Text>
+                      <Text style={styles.metaLabel}>Duration</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <Text style={styles.metaValue}>{Math.round(item.totalVolumeKg ?? 0)}</Text>
+                      <Text style={styles.metaLabel}>Volume (kg)</Text>
+                    </View>
                   </View>
                 </Card>
               </>
@@ -187,12 +198,16 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs, fontWeight: FontWeight.bold, color: Colors.textMuted,
     textTransform: 'uppercase', letterSpacing: 1, marginBottom: Spacing.sm, marginTop: Spacing.sm,
   },
-  card: { marginBottom: Spacing.md },
+  card: { marginBottom: Spacing.md, padding: Spacing.xl },
   cardHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: Spacing.sm, paddingTop: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   cardName: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: Colors.text },
-  cardTime: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
-  cardMeta: { flexDirection: 'row', gap: Spacing.sm },
+  cardTime: { fontSize: FontSize.xs, color: Colors.primary, marginTop: 4, fontWeight: FontWeight.semibold },
+  cardDesc: { fontSize: FontSize.sm, color: Colors.textMuted, marginBottom: Spacing.xl, lineHeight: 20 },
+  cardMetaRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: Colors.borderSubtle, paddingTop: Spacing.md },
+  metaItem: { alignItems: 'center' },
+  metaValue: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: Colors.primary, marginBottom: 2 },
+  metaLabel: { fontSize: FontSize.xs, color: Colors.textMuted },
 });

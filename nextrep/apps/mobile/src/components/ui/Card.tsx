@@ -14,24 +14,12 @@ interface CardProps {
   onPress?: () => void;
 }
 
-export function Card({ children, style, accentColor, gradientAccent, onPress }: CardProps) {
+export function Card({ children, style, onPress }: CardProps) {
   const Wrapper = onPress ? TouchableOpacity : View;
   const wrapperProps = onPress ? { onPress, activeOpacity: 0.7 } : {};
 
   return (
-    <Wrapper style={[styles.card, Shadows.sm, style]} {...wrapperProps}>
-      {(gradientAccent || accentColor) && (
-        gradientAccent ? (
-          <LinearGradient
-            colors={gradientAccent}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.accentLine}
-          />
-        ) : (
-          <View style={[styles.accentLine, { backgroundColor: accentColor! }]} />
-        )
-      )}
+    <Wrapper style={[styles.card, style]} {...wrapperProps}>
       {children}
     </Wrapper>
   );
@@ -40,19 +28,10 @@ export function Card({ children, style, accentColor, gradientAccent, onPress }: 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.bgCard,
-    borderRadius:    Radius.xxl,
+    borderRadius:    Radius.xl,
     padding:         Spacing.lg,
     borderWidth:     1,
-    borderColor:     Colors.border,
+    borderColor:     Colors.borderSubtle,
     overflow:        'hidden',
-  },
-  accentLine: {
-    position:     'absolute',
-    top:          0,
-    left:         0,
-    right:        0,
-    height:       4,
-    borderTopLeftRadius:  Radius.xxl,
-    borderTopRightRadius: Radius.xxl,
   },
 });

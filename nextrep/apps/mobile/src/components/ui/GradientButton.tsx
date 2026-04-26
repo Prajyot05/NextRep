@@ -55,31 +55,27 @@ export function GradientButton({
 
   const gradientColors = GRADIENT_MAP[variant] ?? Gradients.primary;
 
+  const bgColor = gradientColors[0]; // Use first color of gradient
+
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.8}
-      style={[Shadows.md, style]}
+      style={[
+        styles.gradient,
+        { backgroundColor: bgColor, paddingVertical: paddingV },
+        (disabled || loading) && styles.disabled,
+        style,
+      ]}
     >
-      <LinearGradient
-        colors={gradientColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[
-          styles.gradient,
-          { paddingVertical: paddingV },
-          (disabled || loading) && styles.disabled,
-        ]}
-      >
-        {loading ? (
-          <ActivityIndicator color={Colors.text} />
-        ) : (
-          <Text style={[styles.text, { fontSize }]}>
-            {icon ? `${icon} ` : ''}{title}
-          </Text>
-        )}
-      </LinearGradient>
+      {loading ? (
+        <ActivityIndicator color={Colors.text} />
+      ) : (
+        <Text style={[styles.text, { fontSize }]}>
+          {icon ? `${icon} ` : ''}{title}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 }

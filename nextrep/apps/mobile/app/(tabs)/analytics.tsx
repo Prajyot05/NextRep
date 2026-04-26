@@ -209,7 +209,7 @@ export default function AnalyticsScreen() {
         {muscleBalance && muscleBalance.length > 0 && (
           <>
             <SectionHeader title="Muscle Volume" action="Last 30 days" />
-            <Card style={styles.chartCard} gradientAccent={Gradients.primary}>
+            <Card style={styles.chartCard}>
               {muscleBalance.slice(0, 8).map((row: any, i: number) => {
                 const pct = Math.round((row.volume / maxVolume) * 100);
                 const muscleColors = Object.values(Colors.muscle);
@@ -218,11 +218,8 @@ export default function AnalyticsScreen() {
                   <View key={row.muscleGroup} style={styles.barRow}>
                     <Text style={styles.barLabel}>{row.muscleGroup}</Text>
                     <View style={styles.barTrack}>
-                      <LinearGradient
-                        colors={[barColor, `${barColor}88`]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={[styles.barFill, { width: `${Math.max(pct, 4)}%` }]}
+                      <View
+                        style={[styles.barFill, { width: `${Math.max(pct, 4)}%`, backgroundColor: barColor }]}
                       />
                     </View>
                     <Text style={styles.barValue}>{Math.round(row.volume)}</Text>
